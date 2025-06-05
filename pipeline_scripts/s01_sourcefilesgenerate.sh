@@ -1,6 +1,7 @@
 #!/bin/bash
 # Generating source files containing paths to sequenced data
 # Kerry Hathway June2025
+# Script to be used with s01_02_wrapper.sh
 
 # PBS directives
 #---------------
