@@ -2,6 +2,7 @@
 # FastQC & MultiQC
 # Kerry Hathway June2025
 # Requires FastQC and MultiQC in environment
+# Script to be used with s01_02_wrapper.sh
 
 
 ## Load production modules
