@@ -1,0 +1,1214 @@
+---
+title: Investigating soil microbial communities - functional profiles
+author: "Kerry Hathway"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 4
+    theme: readable
+    toc_float:
+      smooth_scroll: true
+      collapsed: true
+    number_sections: false
+---
+
+```{r title-centre, echo=FALSE, results='asis'}
+cat('
+<style>
+h1.title {
+  text-align: center;
+  font-family: "Verdana
+}
+iframe {
+  max-width: 100%;
+  width: 100%;
+  min-width: 0;
+  border: none;
+}
+
+</style>
+')
+```
+
+```{r custom-header, echo=FALSE, results='asis'}
+cat('
+
+
+<style>
+
+body {
+  font-size: 14px;
+  line-height: 1.6;
+  font-family: "Verdana"
+}
+
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: bold;
+}
+
+h1 {
+  font-size: 32px;
+}
+
+h2 {
+  font-size: 26px;
+}
+
+h3 {
+  font-size: 22px;
+}
+
+h4 {
+  font-size: 20px;
+}
+
+h5 {
+  font-size: 18px;
+}
+
+h6 {
+  font-size: 16px;
+}
+
+p {
+  font-size: 14px;
+  font-family: "Verdana"
+}
+ul, ol, li {
+  font-size: 14px;
+}
+summary {
+  font-size: 15px;
+}
+
+body, .main-container {
+  max-width: 95%;
+  margin: 0 auto;
+  font-size: 1.05rem;
+}
+
+.list-group-item.active {
+  background-color: #000;
+}
+
+.header-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  background-color: black;
+  color: white; 
+  display: flex;
+  align-items: center;
+  padding: 10px 20px;
+  z-index: 9999;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  font-size: 26px;
+  font-weight: bold;
+}
+
+
+.header-bar img {
+  height: 45px;
+  margin-right: 15px;
+}
+
+
+.header-text {
+  text-align: center;
+  font-family: "Verdana"
+}
+
+
+body {
+  padding-top: 70px;
+}
+
+
+@media (max-width: 768px) {
+  .header-bar {
+    font-size: 18px;
+    padding: 8px 10px;
+  }
+  .header-bar img {
+    height: 35px;
+    margin-right: 10px;
+  }
+}
+</style>
+
+<div class="header-bar">
+  <img src="images/cropped-restreco_logo-1.jpg" alt="Logo" />
+  <img src="images/Cranfield_logo.jpg" alt="Logo Cranfield" />
+  <div class="header-text">Analysing microbial communities from RestREco project</div>
+</div>
+')
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Functional analysis - bacteria (ggpicrust2)
+
+Here is an attempt at functional analysis using R
+
+```{r load_dependencies, echo=FALSE, message=FALSE, warning=FALSE}
+library(qiime2R)
+
+#devtools::install_github("cafferychen777/ggpicrust2")
+#BiocManager::install('ALDEx2')
+#install.packages("GGally")
+#devtools::install_github("brendanf/FUNGuildR")
+#devtools::install_github("cafferychen777/MicrobiomeStat")
+
+library(ggpicrust2)
+library(readr)
+library(dplyr)
+library(tibble)
+library(ALDEx2)
+library(ggprism)
+library(patchwork)
+library(GGally)
+library(FUNGuildR)
+library(DT)
+library(RColorBrewer)
+library(plotly)
+library(ggplot2)
+library(vegan)
+
+```
+
+QZA files generated in Picrust2 were imported using qiime2r and converted to data frames
+
+```{r import_qza, echo=FALSE, message=FALSE, warning=FALSE}
+
+# Processing aggregated data
+# Import KO abundance and MetaCyc pathway abundances and convert to data frames
+
+ko_abund.raw <- read_qza(file="data/ko_metagenome.qza")
+path_abund.raw <- read_qza(file="data/pathway_abundance.qza")
+
+ko_abund.df <- as.data.frame(ko_abund.raw$data)
+path_abund.df <- as.data.frame(path_abund.raw$data)
+
+ko_abund.df <- rownames_to_column(ko_abund.df, var="#NAME")
+path_abund.df <- rownames_to_column(path_abund.df, var="pathway")
+
+# Import metadata and process
+metadata.df <- read_delim("data/16S/collapsed_metadata.txt", delim="\t")
+
+metadata.df$sampleid <- stringr::str_replace(metadata.df$sampleid, "Lardon Chase-Drought", "Lardon_Chase-Drought")
+
+metadata.df$sampleid <- stringr::str_replace(metadata.df$sampleid, "Lardon Chase-Control", "Lardon_Chase-Control")
+
+# Convert variables to factors
+metadata.df$Site <- as.factor(metadata.df$Site)
+metadata.df$Field_no <- as.factor(metadata.df$Field_no)
+metadata.df$Treatment <- as.factor(metadata.df$Treatment)
+
+colnames(metadata.df)[1] <- "sample_id"
+
+```
+
+``` {r import_qza_nonagg, echo=FALSE, message=FALSE, warning=FALSE}
+
+# Processing unaggregated data
+ko_abund.raw.nonagg <- read_qza(file="data/ko_metagenome_nonagg.qza")
+path_abund.raw.nonagg <- read_qza(file="data/pathway_abundance_nonagg.qza")
+
+ko_abund.df.nonagg <- as.data.frame(ko_abund.raw.nonagg$data)
+path_abund.df.nonagg <- as.data.frame(path_abund.raw.nonagg$data)
+
+ko_abund.df.nonagg <- rownames_to_column(ko_abund.df.nonagg, var="#NAME")
+path_abund.df.nonagg <- rownames_to_column(path_abund.df.nonagg, var="pathway")
+
+# Import metadata and process
+
+metadata.df.nonagg <- read_delim("data/16S/metadata.txt", delim="\t")
+metadata.df.nonagg$Site <- stringr::str_replace_all(metadata.df.nonagg$Site, "Lardon Chase", "Lardon_Chase")
+metadata.df.nonagg$Group_by <- stringr::str_replace_all(metadata.df.nonagg$Group_by, "Lardon Chase-Drought", "Lardon_Chase-Drought")
+metadata.df.nonagg$Group_by <- stringr::str_replace_all(metadata.df.nonagg$Group_by, "Lardon Chase-Control", "Lardon_Chase-Control")
+
+# Convert variables to factors
+metadata.df.nonagg$Site <- as.factor(metadata.df.nonagg$Site)
+metadata.df.nonagg$Field_no <- as.factor(metadata.df.nonagg$Field_no)
+metadata.df.nonagg$Treatment <- as.factor(metadata.df.nonagg$Treatment)
+metadata.df.nonagg$Group_by <- as.factor(metadata.df.nonagg$Group_by)
+
+colnames(metadata.df.nonagg)[1] <- "sample_id"
+
+```
+
+``` {r split_picrust2_data, echo=FALSE, message = FALSE, warning=FALSE}
+
+# KO output
+# Create differential abundance data frames for each site
+ko_abund.HF <- ko_abund.df.nonagg %>% dplyr::select(`#NAME`, contains("P19"))
+ko_abund.WF <- ko_abund.df.nonagg %>% dplyr::select(`#NAME`, contains("P20"))
+ko_abund.CW <- ko_abund.df.nonagg %>% dplyr::select(`#NAME`, contains("P2"))
+ko_abund.CW <- ko_abund.CW %>% dplyr::select(`#NAME`, !contains("P20"))
+ko_abund.J6 <- ko_abund.df.nonagg %>% dplyr::select(`#NAME`, contains("P54"))
+ko_abund.J9 <- ko_abund.df.nonagg %>% dplyr::select(`#NAME`, contains("P55"))
+ko_abund.LC <- ko_abund.df.nonagg %>% dplyr::select(`#NAME`, contains("P67"))
+
+# Split metadata data frame by site
+metadata_site.split <- split(metadata.df.nonagg, metadata.df.nonagg$Site)
+
+# Create differential abundance data frames for each treatment
+ko_abund.ctrl <- ko_abund.df.nonagg %>% dplyr::select(`#NAME`, contains("C"))
+ko_abund.shelt <- ko_abund.df.nonagg %>% dplyr::select(`#NAME`, contains("S"))
+
+# Split metadata data frame by treatment
+metadata_treat.split <- split(metadata.df.nonagg, metadata.df.nonagg$Treatment)
+metadata.drought <- as.data.frame(metadata_treat.split$Drought)
+metadata.ctrl <- metadata_treat.split$Control
+
+# Pathway output (MetaCyc)
+# Create differential abundance data frames for each site
+path_abund.HF <- path_abund.df.nonagg %>% dplyr::select(pathway, contains("P19"))
+path_abund.WF <- path_abund.df.nonagg %>% dplyr::select(pathway, contains("P20"))
+path_abund.CW <- path_abund.df.nonagg %>% dplyr::select(pathway, contains("P2"))
+path_abund.CW <- path_abund.CW %>% dplyr::select(pathway, !contains("P20"))
+path_abund.J6 <- path_abund.df.nonagg %>% dplyr::select(pathway, contains("P54"))
+path_abund.J9 <- path_abund.df.nonagg %>% dplyr::select(pathway, contains("P55"))
+path_abund.LC <- path_abund.df.nonagg %>% dplyr::select(pathway, contains("P67"))
+
+# Create differential abundance data frames for each treatment
+path_abund.ctrl <- path_abund.df.nonagg %>% dplyr::select(pathway, contains("C"))
+path_abund.shelt <- path_abund.df.nonagg %>% dplyr::select(pathway, contains("S"))
+
+```
+
+## Non-significant KO abundance analysis (ggpicrust2) {.tabset}
+
+**Several ggpicrust2 tests failed due to no significant pathways or biomarkers. The code for those is in the tabs below. These will be removed for the final document**
+
+### Treatment - aggregated
+
+
+``` {r ggpicrust2_ko_abund_treat, echo=TRUE}
+
+#ko_abund.res <- ggpicrust2(data = ko_abund.df,
+#                           metadata = metadata.df,
+#                           group="Treatment",
+#                           pathway="KO",
+#                           ko_to_kegg = TRUE,
+#                           p.adjust="fdr",
+#                           order="pathway_class",
+#                           p_values_bar=TRUE,
+#                           x_lab="pathway_name")
+
+# Failed - no significant biomarkers identified
+
+```
+
+### Treatment - unaggregated
+
+``` {r ggpicrust2_ko_abund_treat_nonagg, echo=TRUE}
+
+#ko_abund.res.nonagg <- ggpicrust2(data = ko_abund.df.nonagg,
+#                           metadata = metadata.df.nonagg,
+#                           group="Treatment",
+#                           pathway="KO",
+#                           ko_to_kegg = TRUE,
+#                           p.adjust="fdr",
+#                           order="pathway_class",
+#                           p_values_bar=TRUE,
+#                           x_lab="pathway_name")
+
+# Failed - no significant biomarkers identified
+
+```
+
+### Treatment - site by site
+
+``` {r ggpicrust2_ko_abund_treatbysite, echo=TRUE}
+
+# Harley Farms
+#ko_abund.res.HF <- ggpicrust2(data = ko_abund.HF,
+#                           metadata = metadata_site.split$HARLEY_FARMS_new2b,
+#                           group="Treatment",
+#                           pathway="KO",
+#                           ko_to_kegg = TRUE,
+#                           p.adjust="fdr",
+#                           order="pathway_class",
+#                           p_values_bar=TRUE,
+#                           x_lab="pathway_name")
+
+# Windmill Farm
+#ko_abund.res.WF <- ggpicrust2(data = ko_abund.WF,
+#                           metadata = metadata_site.split$WINDMILL_farm,
+#                           group="Treatment",
+#                           pathway="KO",
+#                           ko_to_kegg = TRUE,
+#                           p.adjust="fdr",
+#                           order="pathway_class",
+#                           p_values_bar=TRUE,
+#                           x_lab="pathway_name")
+
+# Castle Field West
+#ko_abund.res.CW <- ggpicrust2(data = ko_abund.CW,
+#                           metadata = metadata_site.split$Castle_Field_West_W,
+#                           group="Treatment",
+#                           pathway="KO",
+#                           ko_to_kegg = TRUE,
+#                           p.adjust="fdr",
+#                           order="pathway_class",
+#                           p_values_bar=TRUE,
+#                           x_lab="pathway_name")
+
+# Jemma 6
+#ko_abund.res.J6 <- ggpicrust2(data = ko_abund.J6,
+#                           metadata = metadata_site.split$Jemma_6,
+#                           group="Treatment",
+#                           pathway="KO",
+#                           ko_to_kegg = TRUE,
+#                           p.adjust="fdr",
+#                           order="pathway_class",
+#                           p_values_bar=TRUE,
+#                           x_lab="pathway_name")
+
+# Jemma 9
+#ko_abund.res.J9 <- ggpicrust2(data = ko_abund.J9,
+#                           metadata = metadata_site.split$Jemma_9,
+#                           group="Treatment",
+#                           pathway="KO",
+#                           ko_to_kegg = TRUE,
+#                           p.adjust="fdr",
+#                           order="pathway_class",
+#                           p_values_bar=TRUE,
+#                           x_lab="pathway_name")
+
+# Lardon Chase
+#ko_abund.res.LC <- ggpicrust2(data = ko_abund.LC,
+#                           metadata = metadata_site.split$Lardon_Chase,
+#                           group="Treatment",
+#                           pathway="KO",
+#                           ko_to_kegg = TRUE,
+#                           p.adjust="fdr",
+#                           order="pathway_class",
+#                           p_values_bar=TRUE,
+#                           x_lab="pathway_name")
+
+# No statistically significant pathways in any of the sites when comparing control and shelter samples
+
+```
+
+### Site comparisons - shelter samples
+
+``` {r ggpicrust2_ko_abund_shelter, echo=TRUE}
+
+#ko_abund.res.shelt <- ggpicrust2(data = ko_abund.shelt,
+#                           metadata = metadata_treat.split$Drought,
+#                           group="Site",
+#                           pathway="KO",
+#                           ko_to_kegg = TRUE,
+#                           p.adjust="fdr",
+#                           order="pathway_class",
+#                           p_values_bar=TRUE,
+#                           x_lab="pathway_name")
+
+# Failed - no statistically significant biomarkers in the dataset
+
+```
+
+## Significant pathways from KO abundance analysis (ggpicrust2) - control samples {.tabset}
+
+```{r ggpicrust2_ko_abund_control, include=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
+
+ko_abund.res.ctrl <- ggpicrust2(data = ko_abund.ctrl,
+                           metadata = metadata_treat.split$Control,
+                           group="Site",
+                           pathway="KO",
+                           ko_to_kegg = TRUE,
+                           p.adjust="fdr",
+                           order="pathway_class",
+                           p_values_bar=TRUE,
+                           x_lab="pathway_name")
+```
+
+``` {r ko_abund_table_kw, echo=FALSE, message=FALSE, warning=FALSE}
+
+# Create data tables for full significant results
+ko_res.ctrl.kw <- ko_abund.res.ctrl[[1]]$results # 3 sig KO
+ko_abund.ctrl.plot.kw <- ko_abund.res.ctrl[[1]]$plot
+ko_res.ctrl <- ko_abund.res.ctrl[[2]]$results # 148 sig KO
+
+# Kruskal Wallis tables
+ko_abund.ctrl.filt.kw <- ko_abund.res.ctrl[[1]]$results %>% filter(p_adjust < 0.05) 
+
+ko_abund.ctrl.filt.kw <- ko_abund.ctrl.filt.kw %>% dplyr::select(feature, pathway_name, p_adjust, group1, group2, group3, group4, group5, group6, p_values, pathway_class, pathway_map, pathway_description) %>% arrange(p_adjust)
+
+# GLM tables
+ko_abund.ctrl.filt.glm <- ko_abund.res.ctrl[[2]]$results %>% filter(p_adjust < 0.05) %>% dplyr::select(feature, pathway_name, p_adjust, group1, group2, group3, group4, group5, group6, p_values, pathway_class, pathway_map, pathway_description) %>% arrange(p_adjust)
+
+# Convert DAA results into data tables
+ko_res.kw.dt <- datatable(
+  ko_abund.ctrl.filt.kw,
+  colnames = c('KO ID', 'Pathway', 'Adjusted p-values', 'Site 1', 'Site 2', 'Site 3', 'Site 4', 'Site 5', 'Site 6', 'P-values', 'Pathway class', 'Pathway map', 'Pathway description'),
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:black;  font-size: 150% ;','Site comparisons for Kegg Orthology (control) - overall significance (Kruskal-Wallis)'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = FALSE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(ko_abund.ctrl.filt.kw),
+    `text-align` = 'center'
+)
+
+ko_res.glm.dt <- datatable(
+  ko_abund.ctrl.filt.glm,
+  colnames = c('KO ID', 'Pathway', 'Adjusted p-values', 'Site 1', 'Site 2', 'Site 3', 'Site 4', 'Site 5', 'Site 6', 'P-values', 'Pathway class', 'Pathway map', 'Pathway description'),
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:black;  font-size: 150% ;','Site comparisons for Kegg Orthology (control) - overall significance (GLM)'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = FALSE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(ko_abund.ctrl.filt.glm),
+    `text-align` = 'center'
+)
+
+ko_res.kw.dt
+ko_res.glm.dt
+
+```
+
+```{r ko-abund-plots-process, echo=FALSE, include=FALSE}
+
+# Replot pathway errorbar for GLM
+# Run KO to KEGG abundance step
+kegg_abun.ctrl <- ko2kegg_abundance(data = ko_abund.ctrl)
+
+# Filter from pathway abundance tables pathways that are not in the  filtered DAA data frame
+kegg_abun_ctrl.filt <- kegg_abun.ctrl[row.names(kegg_abun.ctrl) %in% ko_res.ctrl$feature,]
+
+# Sum abundances across samples and arrange in descending order
+kegg_abun_ctrl.filt <- kegg_abun_ctrl.filt %>% mutate(sum=rowSums(dplyr::select(., where(is.numeric)))) %>% arrange(desc(sum))
+
+# Select the top 20 most abundant Kegg IDs
+kegg_abun_ctrl.t20 <- rownames(kegg_abun_ctrl.filt)[1:20]
+
+# Select top 50 most abundant Kegg IDs
+kegg_abun_ctrl.t50 <- rownames(kegg_abun_ctrl.filt)[1:50]
+
+```
+
+### Error barplot - Kruskal-Wallis
+
+```{r ko-abund-plot-kw, echo=FALSE, message=FALSE, warning=FALSE, fig.dim=c(10, 6)}
+
+# Plot for Kruskal Wallis
+ko_abund.ctrl.plot.kw
+
+```
+
+### Error barplot - GLM (top 20)
+
+```{r ko-abund-plot-glm-20, echo=FALSE, message=FALSE, warning=FALSE, fig.dim=c(10, 6)} 
+
+# Plot for top 20 - GLM
+pathway_errorbar(abundance = kegg_abun.ctrl, daa_results_df = ko_res.ctrl, Group=metadata.ctrl$Site, p_values_threshold = 0.05, order="pathway_class", select=kegg_abun_ctrl.t20, ko_to_kegg = TRUE, p_value_bar = FALSE, x_lab="pathway_name")
+
+```
+
+### Error barplot - GLM (top 50)
+
+```{r ko-abund-plot-glm-50, echo=FALSE, message=FALSE, warning=FALSE, fig.dim=c(10, 10)}
+
+# Plot for top 50 - GLM
+pathway_errorbar(abundance = kegg_abun.ctrl, daa_results_df = ko_res.ctrl, Group=metadata.ctrl$Site, p_values_threshold = 0.05, order="pathway_class", select=kegg_abun_ctrl.t50, ko_to_kegg = TRUE, p_value_bar = FALSE, x_lab="pathway_name")
+
+```
+
+## PCA plot - KO abundance
+
+```{r ko-abund-pca, echo=FALSE, message=FALSE, warning=FALSE}
+
+# Plot PCA
+metadata.ctrl.pca <- metadata.ctrl
+colnames(metadata.ctrl.pca)[1] <- "sample_name"
+pathway_pca(abundance=kegg_abun.ctrl, metadata=metadata.ctrl.pca, group="Site")
+
+```
+
+## Heatmap - Kegg pathway expression in samples relative to mean abundances {.tabset}
+
+```{r ko-abund-heatmap, echo=FALSE, message=FALSE, warning=FALSE}
+
+# Plot heatmaps for KW and GLM
+metadata.ctrl.hm <- metadata.ctrl.pca
+metadata.ctrl.hm$Site <- stringr::str_replace_all(metadata.ctrl.hm$Site, "Castle_Field_West_W", "CW")
+metadata.ctrl.hm$Site <- stringr::str_replace_all(metadata.ctrl.hm$Site, "HARLEY_FARMS_new2b", "HF")
+metadata.ctrl.hm$Site <- stringr::str_replace_all(metadata.ctrl.hm$Site, "WINDMILL_farm", "WF")
+metadata.ctrl.hm$Site <- stringr::str_replace_all(metadata.ctrl.hm$Site, "Jemma_6", "J6")
+metadata.ctrl.hm$Site <- stringr::str_replace_all(metadata.ctrl.hm$Site, "Jemma_9", "J9")
+metadata.ctrl.hm$Site <- stringr::str_replace_all(metadata.ctrl.hm$Site, "Lardon_Chase", "LC")
+
+```
+
+### GLM
+
+```{r ko-abund-heatmap-glm, echo=FALSE, message=FALSE, warning=FALSE, fig.dim=c(9, 5)}
+
+# Heatmap - GLM
+kegg_abund.ctrl.glm <- kegg_abun.ctrl %>% rownames_to_column("KO") %>% right_join(ko_res.ctrl %>% dplyr::select(all_of(c("feature", "pathway_name"))), by=c("KO" = "feature")) %>% filter(KO %in% kegg_abun_ctrl.t20) %>% dplyr::select(-"KO") %>% column_to_rownames("pathway_name")
+
+pathway_heatmap(abundance = kegg_abund.ctrl.glm, metadata = metadata.ctrl.hm, group="Site", font_size = 12)
+
+```
+
+### Kruskal-Wallis
+
+```{r ko-abund-heatmap-kw, echo=FALSE, message=FALSE, warning=FALSE, fig.dim=c(9,5)}
+
+# Heatmap - KW
+kegg_abund.ctrl.kw <- kegg_abun.ctrl %>% rownames_to_column("KO") %>% right_join(ko_res.ctrl.kw %>% dplyr::select(all_of(c("feature", "pathway_name"))), by=c("KO" = "feature")) %>% dplyr::select(-"KO") %>% column_to_rownames("pathway_name")
+
+pathway_heatmap(abundance = kegg_abund.ctrl.kw, metadata = metadata.ctrl.hm, group="Site", font_size = 12)
+
+```
+
+## Most abundant KEGG pathways in control samples
+
+``` {r ko_most_abund, echo=FALSE}
+
+# Sum abundances across samples and arrange in descending order
+kegg_abun_ctrl.top <- kegg_abun.ctrl %>% mutate(sum=rowSums(dplyr::select(., where(is.numeric)))) %>% arrange(desc(sum))
+
+kegg_abun_ctrl.top <- kegg_abun_ctrl.top[1:10, ]
+
+kegg_abun_ctrl.top <- rownames_to_column(kegg_abun_ctrl.top, var="Kegg ID")
+
+ggplot(kegg_abun_ctrl.top, aes(x = `Kegg ID`, y = sum, fill=`Kegg ID`)) + ggtitle("Top 10 most Kegg pathways in control samples") + geom_col() + theme(plot.title = element_text(size=12), axis.text = element_text(size = 12), axis.title= element_text(size=14, face="bold"), axis.text.x=element_text(angle=45, hjust=1, size=8), legend.text = element_text(size = 8)) + labs(x = "Kegg pathway", y = "Abundance")
+
+```
+
+## Non-significant MetaCyc pathway abundance analysis (ggpicrust2) {.tabset}
+
+**Several ggpicrust2 tests failed due to no significant pathways. The code for those is in the tabs below. These will be removed for the final document**
+
+### Treatment - aggregated
+
+``` {r ggpicrust2_path_abund_treat, echo=TRUE}
+
+#path_abund.res <- ggpicrust2(data = path_abund.df,
+#                             metadata = metadata.df,
+#                             group="Treatment",
+#                             pathway="MetaCyc",
+#                             ko_to_kegg = FALSE,
+#                             p.adjust="fdr",
+#                             order="group",
+#                             p_values_bar = TRUE,
+#                             x_lab="description")
+
+# Failed - no differentially abundant pathways
+
+```
+
+### Treatment - unaggregated
+
+``` {r ggpicrust2_path_abund_treat_nonagg, echo=TRUE}
+
+#path_abund.res.nonagg <- ggpicrust2(data = path_abund.df.nonagg,
+#                             metadata = metadata.df.nonagg,
+#                             group="Treatment",
+#                             pathway="MetaCyc",
+#                             ko_to_kegg = FALSE,
+#                             p.adjust="fdr",
+#                             order="group",
+#                             p_values_bar = TRUE,
+#                             x_lab="description")
+
+# Failed - no significantly differentially abundant pathways
+
+```
+
+### Treatment - site by site
+
+``` {r ggpicrust2_path_abund_treatbysite, echo=TRUE}
+
+# Harley Farms
+#path_abund.res.HF <- ggpicrust2(data = path_abund.HF,
+#                           metadata = metadata_site.split$HARLEY_FARMS_new2b,
+#                           group="Treatment",
+#                           pathway="MetaCyc",
+#                           ko_to_kegg = FALSE,
+#                           p.adjust="fdr",
+#                           order="group",
+#                           p_values_bar=TRUE,
+#                           x_lab="description")
+
+# Windmill Farm
+#path_abund.res.WF <- ggpicrust2(data = path_abund.WF,
+#                           metadata = metadata_site.split$WINDMILL_farm,
+#                           group="Treatment",
+#                           pathway="MetaCyc",
+#                           ko_to_kegg = FALSE,
+#                           p.adjust="fdr",
+#                           order="group",
+#                           p_values_bar=TRUE,
+#                           x_lab="description")
+
+# Castle Field West
+#path_abund.res.CW <- ggpicrust2(data = path_abund.CW,
+#                           metadata = metadata_site.split$Castle_Field_West_W,
+#                           group="Treatment",
+#                           pathway="MetaCyc",
+#                           ko_to_kegg = FALSE,
+#                           p.adjust="fdr",
+#                           order="group",
+#                           p_values_bar=TRUE,
+#                           x_lab="description")
+
+# Jemma 6
+#path_abund.res.J6 <- ggpicrust2(data = path_abund.J6,
+#                           metadata = metadata_site.split$Jemma_6,
+#                           group="Treatment",
+#                           pathway="MetaCyc",
+#                           ko_to_kegg = FALSE,
+#                           p.adjust="fdr",
+#                           order="group",
+#                           p_values_bar=TRUE,
+#                           x_lab="description")
+
+# Jemma 9
+#path_abund.res.J9 <- ggpicrust2(data = path_abund.J9,
+#                           metadata = metadata_site.split$Jemma_9,
+#                           group="Treatment",
+#                           pathway="MetaCyc",
+#                           ko_to_kegg = FALSE,
+#                           p.adjust="fdr",
+#                           order="group",
+#                           p_values_bar=TRUE,
+#                           x_lab="description")
+
+# Lardon Chase
+#path_abund.res.LC <- ggpicrust2(data = path_abund.LC,
+#                           metadata = metadata_site.split$Lardon_Chase,
+#                           group="Treatment",
+#                           pathway="MetaCyc",
+#                           ko_to_kegg = FALSE,
+#                           p.adjust="fdr",
+#                           order="group",
+#                           p_values_bar=TRUE,
+#                           x_lab="description")
+
+# No statistically significant MetaCyc pathways in any of the sites when comparing control and shelter samples
+
+```
+
+### Site comparisons - control samples
+
+```{r ggpicrust2_path_abund_control, echo=TRUE}
+
+#path_abund.res.ctrl <- ggpicrust2(data = path_abund.ctrl,
+#                           metadata = metadata_treat.split$Control,
+#                           group="Site",
+#                           pathway="MetaCyc",
+#                           ko_to_kegg = FALSE,
+#                           p.adjust="fdr",
+#                           order="group",
+#                           p_values_bar=TRUE,
+#                           x_lab="description")
+
+# Failed due to lack of statistically significant features
+
+```
+
+## Most abundant MetaCyc pathways in shelter samples
+
+``` {r most_abun_metacyc, echo=FALSE, message=FALSE, warning=FALSE}
+
+# Sum abundances across samples and arrange in descending order
+path_abun_shelt.top <- path_abund.shelt %>% mutate(sum=rowSums(dplyr::select(., where(is.numeric)))) %>% arrange(desc(sum))
+
+path_abun_shelt.top <- path_abun_shelt.top[1:10, ]
+
+top_metacyc.shelter <- ggplot(path_abun_shelt.top, aes(x = pathway, y = sum, fill=pathway)) + ggtitle("Top 10 most abundant MetaCyc pathways in shelter samples") + geom_col() + theme(plot.title = element_text(size=12), axis.text = element_text(size = 12), axis.title= element_text(size=14, face="bold"), axis.text.x=element_text(angle=45, hjust=1, size=8), legend.text = element_text(size = 8)) + labs(x = "MetaCyc pathway", y = "Abundance")
+
+ggsave("images/top_abund_metacyc.png", top_metacyc.shelter)
+
+top_metacyc.shelter
+
+```
+
+## PCA plot - MetaCyc pathway
+
+``` {r path-abund-pca, echo=FALSE, message=FALSE, warning=FALSE}
+
+metadata.drought.pca <- metadata.drought
+colnames(metadata.drought.pca)[1] <- "sample_name"
+shelt.pca <- pathway_pca(abundance=path_abund.shelt %>% column_to_rownames("pathway"), metadata=metadata.drought.pca, group="Site")
+
+ggsave("images/metacyc_pca.png", shelt.pca)
+
+shelt.pca
+
+```
+
+## Significant MetaCyc pathways from pathway abundance analysis (ggpicrust2) - shelter samples {.tabset}
+
+``` {r ggpicrust2_path_abund_shelter, include=FALSE}
+
+path_abund.res.shelt <- ggpicrust2(data = path_abund.shelt,
+                           metadata = metadata_treat.split$Drought,
+                           group="Site",
+                           pathway="MetaCyc",
+                           ko_to_kegg = FALSE,
+                           p.adjust="fdr",
+                           order="group",
+                           p_values_bar=TRUE,
+                           x_lab="description")
+
+```
+
+
+``` {r metacyc_abund_table, echo=FALSE, message=FALSE, warning=FALSE}
+
+# Extract significance results, filter for significance and produce viewable plots
+path_shelt.res.kw <- path_abund.res.shelt[[1]]$results
+path_shelt.res.kw <- path_shelt.res.kw %>% filter(p_adjust < 0.05)
+path_shelt.kw.filt <- path_shelt.res.kw %>% dplyr::select(feature, description, p_adjust, group1, group2, group3, group4, group5, group6, p_values) %>% arrange(desc(p_adjust))
+# 13 significant pathways
+
+path_shelt.res.glm <- path_abund.res.shelt[[2]]$results
+path_shelt.glm.filt <- path_shelt.res.glm %>% filter(p_adjust < 0.05)
+path_shelt.glm.filt <- path_shelt.glm.filt %>% dplyr::select(feature, description, p_adjust, group1, group2, group3, group4, group5, group6, p_values) %>% arrange(desc(p_adjust))
+# 264 significant pathways
+
+# Convert DAA results into data table
+path_res.kw.dt <- datatable(
+  path_shelt.kw.filt,
+  colnames = c('Pathway', 'Description', 'Adjusted p-values', 'Site 1', 'Site 2', 'Site 3', 'Site 4', 'Site 5', 'Site 6', 'P-values'),
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: center; color:black;  font-size: 150% ;','Site comparisons (shelter) - overall significance (Kruskal-Wallis)'),
+  options = list(
+    pageLength = 15,
+    scrollX = TRUE,
+    autoWidth = FALSE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(df),
+    `text-align` = 'center'
+)
+
+path_res.glm.dt <- datatable(
+  path_shelt.glm.filt,
+  colnames = c('Pathway', 'Description', 'Adjusted p-values', 'Site 1', 'Site 2', 'Site 3', 'Site 4', 'Site 5', 'Site 6', 'P-values'),
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: center; color:black;  font-size: 150% ;','Site comparisons (shelter) - overall significance (GLM)'),
+  options = list(
+    pageLength = 15,
+    scrollX = TRUE,
+    autoWidth = FALSE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(df),
+    `text-align` = 'center'
+)
+
+path_res.kw.dt
+path_res.glm.dt
+
+```
+
+```{r path-abund-plots-process, echo=FALSE, message=FALSE, warning=FALSE}
+
+# Filter from pathway abundance tables pathways that are not in the  filtered DAA data frame
+pathabun_shelt.filt <- path_abund.shelt[path_abund.shelt$pathway %in% path_shelt.res.glm$feature,]
+rownames(pathabun_shelt.filt) <- pathabun_shelt.filt$pathway
+pathabun_shelt.filt <- pathabun_shelt.filt[,2:ncol(pathabun_shelt.filt)]
+
+# Sum abundances across samples and arrange in descending order
+pathabun_shelt.filt <- pathabun_shelt.filt %>% mutate(sum=rowSums(dplyr::select(., where(is.numeric)))) %>% arrange(desc(sum))
+
+# Select the top 3 most abundant pathways
+pathabun_shelt.t3 <- pathabun_shelt.filt[1:3, 1:ncol(pathabun_shelt.filt)-1]
+
+t3.filt <- rownames(pathabun_shelt.t3)
+
+# Select the top 5 most abundant pathways for heatmaps
+
+pathabun_shelt.t5 <- pathabun_shelt.filt[1:5, 1:ncol(pathabun_shelt.filt)-1]
+
+t5.filt <- rownames(pathabun_shelt.t5)
+```
+
+
+### Error barplot - Kruskal-Wallis
+
+```{r path-abund-plot-kw, echo=FALSE, message=FALSE, warning=FALSE, fig.dim=c(10, 6)}
+
+# Top 3 
+
+metacyc_abund.shelter <- pathway_errorbar(abundance=path_abund.shelt %>% column_to_rownames("pathway"), daa_results_df = path_shelt.res.kw, Group=metadata.drought$Site, ko_to_kegg = FALSE, p_values_threshold = 0.045, order="group", colors=NULL, p_value_bar = FALSE, x_lab="description")
+
+metacyc_abund.shelter[[1]][["theme"]][["axis.text.y"]][["size"]] <- 14
+metacyc_abund.shelter[[1]][["theme"]][["legend.text"]][["size"]] <- 12
+
+ggsave("images/metacyc_bar_shelter.png", plot = metacyc_abund.shelter, units = "mm", width=400, height=300)
+
+metacyc_abund.shelter
+
+```
+
+
+### Error barplot - GLM (top 3)
+
+```{r path-abund-plot-glm-20, echo=FALSE, message=FALSE, warning=FALSE, fig.dim=c(10, 6)}
+
+# Top 3 most abundant
+glm.errorbar <- pathway_errorbar(abundance=path_abund.shelt %>% column_to_rownames("pathway"), daa_results_df = path_shelt.res.glm, Group=metadata.drought$Site, ko_to_kegg = FALSE, p_values_threshold = 0.05, order="group", select=t3.filt, p_value_bar = TRUE, colors=NULL, x_lab="description")
+
+ggsave("images/metacyc_bar_shelter_glm.png", plot=glm.errorbar, units = "mm", width=250, height=150)
+
+glm.errorbar
+
+```
+
+
+## Heatmap - Metacyc pathway expression in samples relative to mean abundances {.tabset}
+
+```{r path-abund-heatmap, echo=FALSE, message=FALSE, warning=FALSE}
+
+metadata.drought.hm <- metadata.drought.pca
+metadata.drought.hm$Site <- stringr::str_replace_all(metadata.drought.hm$Site, "Castle_Field_West_W", "CW")
+metadata.drought.hm$Site <- stringr::str_replace_all(metadata.drought.hm$Site, "HARLEY_FARMS_new2b", "HF")
+metadata.drought.hm$Site <- stringr::str_replace_all(metadata.drought.hm$Site, "WINDMILL_farm", "WF")
+metadata.drought.hm$Site <- stringr::str_replace_all(metadata.drought.hm$Site, "Jemma_6", "J6")
+metadata.drought.hm$Site <- stringr::str_replace_all(metadata.drought.hm$Site, "Jemma_9", "J9")
+metadata.drought.hm$Site <- stringr::str_replace_all(metadata.drought.hm$Site, "Lardon_Chase", "LC")
+
+```
+
+### GLM
+
+```{r path-abun-heatmap-glm, echo=FALSE, message=FALSE, warning=FALSE, fig.dim=c(9,5)}
+
+# Heatmap - GLM
+abund.shelt <- path_abund.shelt %>% right_join(path_shelt.res.glm %>% dplyr::select(all_of(c("feature", "description"))), by=c("pathway" = "feature")) %>% filter(pathway %in% t5.filt) %>% dplyr::select(-"pathway") %>% column_to_rownames("description")
+
+glm_heatmap.shelter <- pathway_heatmap(abundance = abund.shelt, metadata = metadata.drought.hm, group="Site", font_size = 12)
+
+ggsave("images/glm_heatmap.png", glm_heatmap.shelter, units="mm", width=250, height=150)
+
+glm_heatmap.shelter
+
+```
+
+### Kruskal-Wallis
+
+```{r path-abun-heatmap-kw, echo=FALSE, message=FALSE, warning=FALSE, fig.dim=c(9,5)}
+
+path_shelt.kw_top <- path_shelt.res.kw %>% filter(p_adjust < 0.0475)
+
+# Heatmap - KW
+abund.shelt.kw <- path_abund.shelt %>% right_join(path_shelt.kw_top %>% dplyr::select(all_of(c("feature", "description"))), by=c("pathway" = "feature")) %>% dplyr::select(-"pathway") %>% column_to_rownames("description")
+
+kw.heatmap.shelter <- pathway_heatmap(abundance = abund.shelt.kw, metadata = metadata.drought.hm, group="Site", font_size = 12)
+
+ggsave("images/heatmap_kw_shelt.png", kw.heatmap.shelter, units="mm", width=250, height=150)
+kw.heatmap.shelter
+
+```
+
+
+``` {r path_abund_shelter_pairs, include=FALSE, echo=FALSE, message=FALSE, warning = FALSE}
+# Rerun using LinDA method for multigroup comparisons
+
+# Process data for use with pathway_daa - pathways to become rownames
+colnames(path_abund.shelt) %in% metadata.drought$sample_id
+path_abund.shelt.mod <- path_abund.shelt
+rownames(path_abund.shelt.mod) <- path_abund.shelt.mod$pathway
+path_abund.shelt.mod <- path_abund.shelt.mod[,2:ncol(path_abund.shelt.mod)]
+
+# Run DAA with Castle Field West as reference
+path_abund.res_lin.shelt <- pathway_daa(abundance = path_abund.shelt.mod,
+                           metadata = metadata.drought,
+                           group="Site",
+                           daa_method = "LinDA",
+                           p.adjust="fdr")
+
+# Filter only those that are significant
+filtered_res.shelt <- path_abund.res_lin.shelt %>% filter(p_adjust < 0.05)
+
+```
+
+## Functional analysis - fungi (FUNGuildR)
+
+``` {r funguild_analysis, echo=FALSE, message = FALSE, warning=FALSE}
+
+fun_taxa.df <- read_delim("data/funguild_input.tsv", delim = "\t")
+fungal_guilds <- funguild_assign(fun_taxa.df)
+
+write.table(fungal_guilds, file="data/fungal_guilds.tsv", sep="\t", row.names=FALSE, quote=FALSE)
+
+```
+
+``` {r guild_process_abun_plot, echo=FALSE}
+
+# Filter to only keep those with confidence rankings of highly probable and probable
+
+guild.filt <- fungal_guilds
+guild.filt$guild[is.na(guild.filt$guild)] <- "Unassigned"
+
+guild.filt <- guild.filt %>% filter(!is.na(guild), confidenceRanking %in% c('Highly Probable', 'Probable'))
+
+# Extract guild information between pipes (|...|)
+guild.filt$guild_ext <- stringr::str_extract(guild.filt$guild, "\\|[^|]+\\|") %>%
+  stringr::str_replace_all("\\|", "") %>%
+  trimws()
+
+# If no info between pipes, include full guild info
+guild.filt$guild_ext <- ifelse(is.na(guild.filt$guild_ext), guild.filt$guild, guild.filt$guild_ext)
+
+# Get top 10 most abundant guilds in shelter samples
+
+guilds.sum <- aggregate (cbind(guild.filt$`WINDMILL_farm-Drought`, guild.filt$`Castle_Field_West_W-Drought`, guild.filt$`Jemma_6-Drought`, guild.filt$`Jemma_9-Drought`, guild.filt$`Lardon Chase-Drought`), by=list(Guild=guild.filt$guild_ext), FUN=sum)
+
+guilds.sum$Total <- rowSums(guilds.sum[, c(2, 3, 4, 5, 6)])
+
+guilds.sum.drought <- guilds.sum %>% slice_max(guilds.sum$Total, n=10) %>% arrange(desc(Total))
+
+guilds.sum.drought$Guild <- stringr::str_replace(guilds.sum.drought$Guild, "Algal Parasite-Bryophyte Parasite-Fungal Parasite-Undefined Saprotroph", "Algal-Bryophyte-Parasite-Saprotroph")
+
+# Top 10 most abundant guilds in control samples
+
+guilds.sum.ctrl <- aggregate (cbind(guild.filt$`WINDMILL_farm-Control`, guild.filt$`Castle_Field_West_W-Control`, guild.filt$`Jemma_6-Control`, guild.filt$`Jemma_9-Control`, guild.filt$`Lardon Chase-Control`), by=list(Guild=guild.filt$guild_ext), FUN=sum)
+
+guilds.sum.ctrl$Total <- rowSums(guilds.sum.ctrl[, c(2, 3, 4, 5, 6)])
+
+guilds.sum.ctrl.top <- guilds.sum.ctrl %>% slice_max(guilds.sum.ctrl$Total, n=10) %>% arrange(desc(Total))
+
+guilds.sum.ctrl.top$Guild <- stringr::str_replace(guilds.sum.ctrl.top$Guild, "Algal Parasite-Bryophyte Parasite-Fungal Parasite-Undefined Saprotroph", "Algal-Bryophyte-Parasite-Saprotroph")
+
+```
+### Top 10 most abundant guilds {.tabset}
+
+#### Control
+
+``` {r fun_top_guild_ctrl_plot, echo=FALSE, message=FALSE, warning=FALSE, fig.dim=c(10, 7)}
+
+guild.abund.ctrl <- ggplot(guilds.sum.ctrl.top, aes(x = Guild, y = Total, fill=Guild)) + scale_fill_brewer(palette="Paired") + ggtitle("Top 10 most abundant guilds in control samples") + geom_col() + theme(plot.title = element_text(size=12), axis.text = element_text(size = 10), axis.title= element_text(size=14, face="bold"), axis.text.x=element_text(angle=45, hjust=1, size=8), legend.text = element_text(size = 8)) + labs(x = NULL,
+       y = "Guild abundance")
+
+guild.abund.ctrl
+
+ggsave("images/guild_ctrl_top_abund.png", plot=guild.abund.ctrl, units="mm", width=300, height=140)
+
+```
+
+#### Shelter
+
+``` {r fun_top_guild_shelter_plot, echo=FALSE, message=FALSE, warning=FALSE, fig.dim=c(10, 7)}
+
+guild.abund.shelter <- ggplot(guilds.sum.drought, aes(x = Guild, y = Total, fill=Guild)) + scale_fill_brewer(palette="Paired") + ggtitle("Top 10 most abundant guilds in shelter samples") + geom_col() + theme(plot.title = element_text(size=12), axis.text = element_text(size = 10), axis.title= element_text(size=14, face="bold"), axis.text.x=element_text(angle=45, hjust=1, size=8), legend.text = element_text(size = 8)) + labs(x = NULL,
+       y = "Guild abundance")
+
+guild.abund.shelter
+
+ggsave("images/guild_shelt_top_abund.png", plot=guild.abund.shelter, units="mm", width=300, height=140)
+
+```
+
+### Guilds grouped by site-treatment
+
+``` {r guild_abund_group, echo=FALSE}
+
+# Import metadata
+
+fun_meta <- read.delim("data/ITS/collapsed_metadata.txt", sep='\t', header=TRUE)
+
+guild.group <- fungal_guilds
+guild.group$guild[is.na(guild.group$guild)] <- "Unassigned"
+
+# Extract guild information between pipes (|...|)
+guild.group$guild_ext <- stringr::str_extract(guild.group$guild, "\\|[^|]+\\|") %>%
+  stringr::str_replace_all("\\|", "") %>%
+  trimws()
+
+# Unassigned guilds to be kept
+guild.group$guild_ext <- ifelse(guild.group$guild == "Unassigned", guild.group$guild, guild.group$guild_ext)
+
+# Any guild entries that do not have pipes or have a list of guilds, classify as non-specific
+guild.group$guild_ext <- ifelse(is.na(guild.group$guild_ext), "Non-specific", guild.group$guild_ext)
+
+# Setting factor level and setting unassigned as guild that appears first
+guild.group$guild_ext <- factor(guild.group$guild_ext, levels=c("Unassigned", sort(unique(guild.group$guild_ext[guild.group$guild_ext != "Unassigned"]))))
+
+group_cols <- names(guild.group)[3:(which(names(guild.group) == "taxon")-1)]
+
+# Join metadata to abundance data
+
+guild_plus_meta <- guild.group %>% tidyr::pivot_longer(cols=all_of(group_cols), names_to = "Group", values_to = "Abundance") %>% left_join(fun_meta, by=c("Group" = "sampleid"))
+
+# Calculate relative abundances by group (site-treatment) and guild
+rel_guild.data <- guild_plus_meta %>% 
+  filter(Abundance > 0) %>% 
+  group_by(Group, guild_ext) %>% 
+  summarise(Abundance = sum(Abundance), .groups = "drop") %>%
+  group_by(Group) %>% 
+  mutate(Relative_abundance = Abundance / sum(Abundance) * 100) %>%
+  ungroup()
+
+# Order samples or groups by treatment
+treat_groups <- rel_guild.data %>% distinct(Group) %>% 
+  left_join(fun_meta[,c("sampleid", "Treatment")], by=c("Group"="sampleid")) %>% arrange(Treatment, Group)
+
+group_order <- treat_groups$Group
+
+rel_guild.data <- rel_guild.data %>% mutate(Group = factor(Group, levels=group_order))
+
+# Determine position of vertical lines splitting groups of different treatmnts - to be passed to geom_vline()
+group_breaks <- treat_groups %>%
+  group_by(Treatment) %>%
+  summarise(n = n()) %>%
+  mutate(position = cumsum(n) + 0.5) %>%
+  filter(row_number() < n())
+
+# Work out position for your group labels ie. where on the resulting plot you want the treatment (control, shelter) to sit
+group_labels <- treat_groups %>% 
+  mutate(group_num=as.numeric(factor(Group, levels= group_order))) %>% 
+  group_by(Treatment) %>%
+  summarise(position = median(group_num), .groups = "drop")
+
+colors.plot <- colorRampPalette(brewer.pal(9, "Paired"))(20)
+
+guild.plot <- ggplot(rel_guild.data, aes(x = Group, y = Relative_abundance, fill = guild_ext)) +
+  geom_bar(stat = "identity") +
+  geom_vline(data = group_breaks, aes(xintercept = position), color = "black", linetype = "dashed") +
+  geom_text(data = group_labels, aes(x = position, y = max(rel_guild.data$Relative_abundance) + 60, label = Treatment), inherit.aes = FALSE, size = 3, fontface = "bold", color="black") +
+  scale_fill_manual(values=colors.plot) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 90, hjust = 1, size = 10),
+    axis.ticks.x = element_blank(),
+    legend.text = element_text(size = 10)
+  ) +
+  labs(
+    title = "Fungal guild abundance by site-treatment",
+    x = "Group",
+    y = "Abundance (%)",
+    fill = "Guild"
+  )
+
+ggplotly(guild.plot)
+```
+
+### Guilds grouped by treatment
+
+``` {r rel_abund_treat, echo=FALSE}
+
+# Calculate relative abundances by group (site-treatment) and guild
+rel_guild.treat <- guild_plus_meta %>% 
+  filter(Abundance > 0) %>% 
+  group_by(Treatment, guild_ext) %>% 
+  summarise(Abundance = sum(Abundance), .groups = "drop") %>%
+  group_by(Treatment) %>% 
+  mutate(Relative_abundance = Abundance / sum(Abundance) * 100) %>%
+  ungroup()
+
+
+guild_treat.plot <- ggplot(rel_guild.treat, aes(x = Treatment, y = Relative_abundance, fill = guild_ext)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values=colors.plot) +
+  scale_x_discrete(labels = c('Control', 'Shelter')) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 90, hjust = 1, size = 10),
+    axis.ticks.x = element_blank(),
+    legend.text = element_text(size = 10)
+  ) +
+  labs(
+    title = "Fungal guild abundance by treatment",
+    x = "Treatment",
+    y = "Abundance (%)",
+    fill = "Guild"
+  )
+
+ggplotly(guild_treat.plot)
+```
+## Guild alpha diversity
+
+```{r guild_diversity, echo=FALSE}
+
+guild_div.df <- rel_guild.data %>% select(-"Relative_abundance")
+guild_div.df <- guild_div.df %>% pivot_wider(names_from=guild_ext, values_from=Abundance)
+
+guild_div.df[is.na(guild_div.df)] <- 0
+guild_div.df <- guild_div.df %>% column_to_rownames(var="Group")
+
+guild.diversity <- diversity(guild_div.df, index="shannon")
+
+guild.diversity <- as.data.frame(guild.diversity)
+
+names(guild.diversity)[1] <- "Shannon"
+
+guild.div.simp <- diversity(guild_div.df, index="simpson")
+
+guild.div.simp <- as.data.frame(guild.div.simp)
+
+names(guild.div.simp)[1] <- "Simpson"
+
+guild.div.metrics <- merge(guild.diversity, guild.div.simp, by="row.names")
+names(guild.div.metrics)[1] <- "sampleid"
+
+# Merge with meta data for statistical analysis
+merged_alpha.fun <- merge(guild.div.metrics, fun_meta, by="sampleid")
+
+# Split functional diversity metrics by treatment
+split.func_richness <- split(merged_alpha.fun, merged_alpha.fun$Treatment)
+
+```
+
+```{r wilcoxon_guild, echo=FALSE}
+# Carry out Wilcoxon signed rank test on guild data
+
+func_treat_shan.fun <- wilcox.test(split.func_richness[["Control"]][["Shannon"]], split.func_richness[["Drought"]][["Shannon"]], paired=TRUE)
+
+func_treat_simp.fun <- wilcox.test(split.func_richness[["Control"]][["Simpson"]], split.func_richness[["Drought"]][["Simpson"]], paired=TRUE)
+
+func_treat_shan.fun
+func_treat_simp.fun
+
+```

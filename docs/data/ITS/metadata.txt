@@ -1,0 +1,26 @@
+Sampleid	Site	Field_no	Treatment	Group_by
+F2S1	Castle_Field_West_W	2	Drought	Castle_Field_West_W-Drought
+F2S2	Castle_Field_West_W	2	Drought	Castle_Field_West_W-Drought
+F2S3	Castle_Field_West_W	2	Drought	Castle_Field_West_W-Drought
+F2C3	Castle_Field_West_W	2	Control	Castle_Field_West_W-Control
+F20S1	WINDMILL_farm	20	Drought	WINDMILL_farm-Drought
+F20C1	WINDMILL_farm	20	Control	WINDMILL_farm-Control
+F20C2	WINDMILL_farm	20	Control	WINDMILL_farm-Control
+F20C3	WINDMILL_farm	20	Control	WINDMILL_farm-Control
+F54S1	Jemma_6	54	Drought	Jemma_6-Drought
+F54S2	Jemma_6	54	Drought	Jemma_6-Drought
+F54C1	Jemma_6	54	Control	Jemma_6-Control
+F54C2	Jemma_6	54	Control	Jemma_6-Control
+F54C3	Jemma_6	54	Control	Jemma_6-Control
+F55S1	Jemma_9	55	Drought	Jemma_9-Drought
+F55S2	Jemma_9	55	Drought	Jemma_9-Drought
+F55S3	Jemma_9	55	Drought	Jemma_9-Drought
+F55C1	Jemma_9	55	Control	Jemma_9-Control
+F55C2	Jemma_9	55	Control	Jemma_9-Control
+F55C3	Jemma_9	55	Control	Jemma_9-Control
+F67S1	Lardon Chase	67	Drought	Lardon Chase-Drought
+F67S2	Lardon Chase	67	Drought	Lardon Chase-Drought
+F67S3	Lardon Chase	67	Drought	Lardon Chase-Drought
+F67C1	Lardon Chase	67	Control	Lardon Chase-Control
+F67C2	Lardon Chase	67	Control	Lardon Chase-Control
+F67C3	Lardon Chase	67	Control	Lardon Chase-Control

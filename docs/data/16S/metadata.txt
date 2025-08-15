@@ -1,0 +1,37 @@
+Sampleid	Site	Field_no	Treatment	Group_by
+P2S1	Castle_Field_West_W	2	Drought	Castle_Field_West_W-Drought
+P2S2	Castle_Field_West_W	2	Drought	Castle_Field_West_W-Drought
+P2S3	Castle_Field_West_W	2	Drought	Castle_Field_West_W-Drought
+P2C1	Castle_Field_West_W	2	Control	Castle_Field_West_W-Control
+P2C2	Castle_Field_West_W	2	Control	Castle_Field_West_W-Control
+P2C3	Castle_Field_West_W	2	Control	Castle_Field_West_W-Control
+P19S1	HARLEY_FARMS_new2b	19	Drought	HARLEY_FARMS_new2b-Drought
+P19S2	HARLEY_FARMS_new2b	19	Drought	HARLEY_FARMS_new2b-Drought
+P19S3	HARLEY_FARMS_new2b	19	Drought	HARLEY_FARMS_new2b-Drought
+P19C1	HARLEY_FARMS_new2b	19	Control	HARLEY_FARMS_new2b-Control
+P19C2	HARLEY_FARMS_new2b	19	Control	HARLEY_FARMS_new2b-Control
+P19C3	HARLEY_FARMS_new2b	19	Control	HARLEY_FARMS_new2b-Control
+P20S1	WINDMILL_farm	20	Drought	WINDMILL_farm-Drought
+P20S2	WINDMILL_farm	20	Drought	WINDMILL_farm-Drought
+P20S3	WINDMILL_farm	20	Drought	WINDMILL_farm-Drought
+P20C1	WINDMILL_farm	20	Control	WINDMILL_farm-Control
+P20C2	WINDMILL_farm	20	Control	WINDMILL_farm-Control
+P20C3	WINDMILL_farm	20	Control	WINDMILL_farm-Control
+P54S1	Jemma_6	54	Drought	Jemma_6-Drought
+P54S2	Jemma_6	54	Drought	Jemma_6-Drought
+P54S3	Jemma_6	54	Drought	Jemma_6-Drought
+P54C1	Jemma_6	54	Control	Jemma_6-Control
+P54C2	Jemma_6	54	Control	Jemma_6-Control
+P54C3	Jemma_6	54	Control	Jemma_6-Control
+P55S1	Jemma_9	55	Drought	Jemma_9-Drought
+P55S2	Jemma_9	55	Drought	Jemma_9-Drought
+P55S3	Jemma_9	55	Drought	Jemma_9-Drought
+P55C1	Jemma_9	55	Control	Jemma_9-Control
+P55C2	Jemma_9	55	Control	Jemma_9-Control
+P55C3	Jemma_9	55	Control	Jemma_9-Control
+P67S1	Lardon Chase	67	Drought	Lardon Chase-Drought
+P67S2	Lardon Chase	67	Drought	Lardon Chase-Drought
+P67S3	Lardon Chase	67	Drought	Lardon Chase-Drought
+P67C1	Lardon Chase	67	Control	Lardon Chase-Control
+P67C2	Lardon Chase	67	Control	Lardon Chase-Control
+P67C3	Lardon Chase	67	Control	Lardon Chase-Control

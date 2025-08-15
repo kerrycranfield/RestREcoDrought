@@ -1,0 +1,11 @@
+sampleid	Site	Field_no	Treatment
+Jemma_6-Control	Jemma_6	54	Control
+Jemma_9-Control	Jemma_9	55	Control
+Castle_Field_West_W-Control	Castle_Field_West_W	2	Control
+Lardon Chase-Control	Lardon Chase	67	Control
+Jemma_9-Drought	Jemma_9	55	Drought
+Lardon Chase-Drought	Lardon Chase	67	Drought
+Castle_Field_West_W-Drought	Castle_Field_West_W	2	Drought
+WINDMILL_farm-Control	WINDMILL_farm	20	Control
+Jemma_6-Drought	Jemma_6	54	Drought
+WINDMILL_farm-Drought	WINDMILL_farm	20	Drought

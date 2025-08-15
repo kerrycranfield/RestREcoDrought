@@ -1,0 +1,3225 @@
+---
+title: Investigating soil microbial communities - differential abundance
+author: "Kerry Hathway"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 4
+    theme: readable
+    toc_float:
+      smooth_scroll: true
+      collapsed: true
+    number_sections: false
+---
+
+```{r title-centre, echo=FALSE, results='asis'}
+cat('
+<style>
+h1.title {
+  text-align: center;
+  font-family: "Verdana
+}
+iframe {
+  max-width: 100%;
+  width: 100%;
+  min-width: 0;
+  border: none;
+}
+
+</style>
+')
+```
+
+```{r custom-header, echo=FALSE, results='asis'}
+cat('
+
+
+<style>
+
+body {
+  font-size: 14px;
+  line-height: 1.6;
+  font-family: "Verdana"
+}
+
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: bold;
+}
+
+h1 {
+  font-size: 32px;
+}
+
+h2 {
+  font-size: 26px;
+}
+
+h3 {
+  font-size: 22px;
+}
+
+h4 {
+  font-size: 20px;
+}
+
+h5 {
+  font-size: 18px;
+}
+
+h6 {
+  font-size: 16px;
+}
+
+p {
+  font-size: 14px;
+  font-family: "Verdana"
+}
+ul, ol, li {
+  font-size: 14px;
+}
+summary {
+  font-size: 15px;
+}
+
+body, .main-container {
+  max-width: 95%;
+  margin: 0 auto;
+  font-size: 1.05rem;
+}
+
+.list-group-item.active {
+  background-color: #000;
+}
+
+.header-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  background-color: black;
+  color: white; 
+  display: flex;
+  align-items: center;
+  padding: 10px 20px;
+  z-index: 9999;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  font-size: 26px;
+  font-weight: bold;
+}
+
+
+.header-bar img {
+  height: 45px;
+  margin-right: 15px;
+}
+
+
+.header-text {
+  text-align: center;
+  font-family: "Verdana"
+}
+
+
+body {
+  padding-top: 70px;
+}
+
+
+@media (max-width: 768px) {
+  .header-bar {
+    font-size: 18px;
+    padding: 8px 10px;
+  }
+  .header-bar img {
+    height: 35px;
+    margin-right: 10px;
+  }
+}
+</style>
+
+<div class="header-bar">
+  <img src="images/cropped-restreco_logo-1.jpg" alt="Logo" />
+  <img src="images/Cranfield_logo.jpg" alt="Logo Cranfield" />
+  <div class="header-text">Analysing microbial communities from RestREco project</div>
+</div>
+')
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+``` {r load_dependencies, echo=FALSE, message=FALSE, warning=FALSE}
+
+library(phyloseq)
+library(ANCOMBC)
+library(dplyr)
+library(DT)
+
+load('.RData')
+
+```
+
+## Differential abundance (ANCOMBC2)
+
+Differential abundance analysis using ANCOMBC was carried out on unrarefied data due to the recommendations by the package authors and discussions online. For significant taxa associated with different site-treatment groups, the data was also non-aggregated to ensure there were enough samples for ANCOM analysis.
+
+### Bacteria
+
+#### Genera
+
+##### Treatment
+
+No genera were identified as differentially abundant when comparing control and water stress samples
+
+``` {r diff_abund_bac_gen_treat, echo=FALSE, message=FALSE, warning=FALSE}
+
+library(ANCOMBC)
+
+# Convert metadata variables into factors
+sample_data(BacGenSites)$Treatment <- as.factor(sample_data(BacGenSites)$Treatment)
+sample_data(BacGenSites)$Site <- as.factor(sample_data(BacGenSites)$Site)
+sample_data(BacGenSites)$Field_no <- as.factor(sample_data(BacGenSites)$Field_no)
+sample_data(BacGenSites)$Group_by <- as.factor(sample_data(BacGenSites)$Group_by)
+
+sample_data(Bac_Gen)$Treatment <- as.factor(sample_data(Bac_Gen)$Treatment)
+sample_data(Bac_Gen)$Site <- as.factor(sample_data(Bac_Gen)$Site)
+sample_data(Bac_Gen)$Field_no <- as.factor(sample_data(Bac_Gen)$Field_no)
+sample_data(Bac_Gen)$Group_by <- as.factor(sample_data(Bac_Gen)$Group_by)
+
+# Check treatment levels are in the right order for our analysis - we want control to be the reference
+levels(sample_data(BacGenSites)$Treatment) # Control is first
+
+# Run ANCOM focusing on the treatment variable
+ancom_gen_treat.bac.unrare <- ancombc2(
+  BacGenSites, 
+  tax_level = "Genus", 
+  fix_formula = "Treatment",
+  p_adj_method = "fdr", 
+  alpha=0.05,
+  n_cl=4, 
+  verbose=TRUE
+  )
+
+# Extract results into a data frame for analysis
+ancom_gen_treat.bac.unrare.df <- ancom_gen_treat.bac.unrare$res
+
+# Filter the results so only those columns pertaining to the comparison between control and drought are included
+ancom_gen_treat.bac.unrare.df <- ancom_gen_treat.bac.unrare.df %>% select(taxon, contains("TreatmentDrought"))
+
+# Save output to html table
+output_treat.gen.bac <- datatable(
+  ancom_gen_treat.bac.unrare.df,
+  colnames = c('Genera', 'LFC Shelter', 'SE Shelter', 'W-value Shelter', 'p-value Shelter', 'Adjusted p-value Shelter', 'Significant', 'Passed sensitivity'),
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: center; color:black;  font-size: 150% ;','Control vs Shelter'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = FALSE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(ancom_gen_treat.bac.unrare.df),
+    `text-align` = 'center'
+    )
+
+saveWidget(output_treat.gen.bac, "data/ANCOMBC_gen_treat_bac.html", selfcontained = FALSE )
+
+# Filter differentially abundant genera that pass both the differential abundance and sensitivity tests
+dif_gen_treat.bac.unrare <- ancom_gen_treat.bac.unrare.df %>% filter(diff_TreatmentDrought & passed_ss_TreatmentDrought) %>% arrange(desc(lfc_TreatmentDrought))
+
+# No significantly differentially abundant taxa found associated with treatment
+
+output_treat.gen.bac
+
+```
+
+
+##### Comparing control and shelter samples on each site
+
+No differentially abundant taxa were identified between control and water stress samples on any of the sites
+
+``` {r diff_abund_bac_gen_sites, echo=FALSE, message=FALSE, warning=FALSE}
+
+# Splitting data by site
+bac.com.split <- Bac_Gen %>% metagMisc::phyloseq_sep_variable("Site")
+
+# Castle Field West
+ancom_gen.bac.CW <- ancombc2(
+  bac.com.split$Castle_Field_West_W, 
+  tax_level="Genus", 
+  fix_formula="Treatment", 
+  p_adj_method = "fdr", 
+  alpha=0.05,
+  n_cl=4, 
+  verbose=TRUE
+  )
+
+# Extract results, save to data table and export
+ancom_gen_bac.CW.df <- ancom_gen.bac.CW$res %>% select(taxon, contains("TreatmentDrought"))
+
+res_gen.bac.CW <- datatable(
+  ancom_gen_bac.CW.df,
+  colnames = c('Genera', 'LFC Shelter', 'SE Shelter', 'W-value Shelter', 'p-value Shelter', 'Adjusted p-value Shelter', 'Significant', 'Passed sensitivity'),
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: center; color:black;  font-size: 150% ;','Control vs Shelter - Castle Field West'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = FALSE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(ancom_gen_bac.CW.df),
+    `text-align` = 'center'
+    )
+
+saveWidget(res_gen.bac.CW, "data/ANCOM_gen_bac_CW.html", selfcontained = FALSE )
+
+# Filter results for taxa passing diff abund and sensitivity tests
+res_gen.bac.CW.df <- ancom_gen_bac.CW.df %>% filter(`diff_TreatmentDrought` & `passed_ss_TreatmentDrought`) %>% arrange(desc(`lfc_TreatmentDrought`))
+
+# Harley Farms
+ancom_gen.bac.HF <- ancombc2(
+  bac.com.split$HARLEY_FARMS_new2b, 
+  tax_level="Genus", 
+  fix_formula="Treatment",
+  p_adj_method = "fdr", 
+  alpha=0.05,
+  n_cl=4, 
+  verbose=TRUE
+  )
+
+# Extract results, save to data table and export
+ancom_gen_bac.HF.df <- ancom_gen.bac.HF$res %>% select(taxon, contains("TreatmentDrought"))
+
+res_gen.bac.HF <- datatable(
+  ancom_gen_bac.HF.df,
+  colnames = c('Genera', 'LFC Shelter', 'SE Shelter', 'W-value Shelter', 'p-value Shelter', 'Adjusted p-value Shelter', 'Significant', 'Passed sensitivity'),
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: center; color:black;  font-size: 150% ;','Control vs Shelter - Harley Farms'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = FALSE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(ancom_gen_bac.HF.df),
+    `text-align` = 'center'
+    )
+
+saveWidget(res_gen.bac.HF, "data/ANCOM_gen_bac_HF.html", selfcontained = FALSE )
+
+# Filter results for taxa passing diff abund and sensitivity tests
+res_gen.bac.HF.df <- ancom_gen_bac.HF.df %>% filter(`diff_TreatmentDrought` & `passed_ss_TreatmentDrought`) %>% arrange(desc(`lfc_TreatmentDrought`))
+
+# Jemma 6
+ancom_gen.bac.J6 <- ancombc2(
+  bac.com.split$Jemma_6, 
+  tax_level="Genus", 
+  fix_formula="Treatment", 
+  p_adj_method = "fdr", 
+  alpha=0.05,
+  n_cl=4, 
+  verbose=TRUE
+  )
+
+# Extract results, save to data table and export
+ancom_gen_bac.J6.df <- ancom_gen.bac.J6$res %>% select(taxon, contains("TreatmentDrought"))
+
+res_gen.bac.J6 <- datatable(
+  ancom_gen_bac.J6.df,
+  colnames = c('Genera', 'LFC Shelter', 'SE Shelter', 'W-value Shelter', 'p-value Shelter', 'Adjusted p-value Shelter', 'Significant', 'Passed sensitivity'),
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: center; color:black;  font-size: 150% ;','Control vs Shelter - Jemma 6'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = FALSE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(ancom_gen_bac.J6.df),
+    `text-align` = 'center'
+    )
+
+saveWidget(res_gen.bac.J6, "data/ANCOM_gen_bac_J6.html", selfcontained = FALSE )
+
+# Filter results for taxa passing diff abund and sensitivity tests
+res_gen.bac.J6.df <- ancom_gen_bac.J6.df %>% filter(`diff_TreatmentDrought` & `passed_ss_TreatmentDrought`) %>% arrange(desc(`lfc_TreatmentDrought`))
+
+# Jemma 9
+ancom_gen.bac.J9 <- ancombc2(
+  bac.com.split$Jemma_9, 
+  tax_level="Genus", 
+  fix_formula="Treatment", 
+  p_adj_method = "fdr", 
+  alpha=0.05,
+  n_cl=4, 
+  verbose=TRUE
+  )
+
+# Extract results, save to data table and export
+ancom_gen_bac.J9.df <- ancom_gen.bac.J9$res %>% select(taxon, contains("TreatmentDrought"))
+
+res_gen.bac.J9 <- datatable(
+  ancom_gen_bac.J9.df,
+  colnames = c('Genera', 'LFC Shelter', 'SE Shelter', 'W-value Shelter', 'p-value Shelter', 'Adjusted p-value Shelter', 'Significant', 'Passed sensitivity'),
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: center; color:black;  font-size: 150% ;','Control vs Shelter - Jemma 9'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = FALSE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(ancom_gen_bac.J9.df),
+    `text-align` = 'center'
+    )
+
+saveWidget(res_gen.bac.J9, "data/ANCOM_gen_bac_J9.html", selfcontained = FALSE )
+
+# Filter results for taxa passing diff abund and sensitivity tests
+res_gen.bac.J9.df <- ancom_gen_bac.J9.df %>% filter(`diff_TreatmentDrought` & `passed_ss_TreatmentDrought`) %>% arrange(desc(`lfc_TreatmentDrought`))
+
+# Lardon Chase
+ancom_gen.bac.LC <- ancombc2(
+  bac.com.split$`Lardon Chase`, 
+  tax_level="Genus", 
+  fix_formula="Treatment",
+  p_adj_method = "fdr", 
+  alpha=0.05,
+  n_cl=4, 
+  verbose=TRUE
+  )
+
+# Extract results, save to data table and export
+ancom_gen_bac.LC.df <- ancom_gen.bac.LC$res %>% select(taxon, contains("TreatmentDrought"))
+
+res_gen.bac.LC <- datatable(
+  ancom_gen_bac.LC.df,
+  colnames = c('Genera', 'LFC Shelter', 'SE Shelter', 'W-value Shelter', 'p-value Shelter', 'Adjusted p-value Shelter', 'Significant', 'Passed sensitivity'),
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: center; color:black;  font-size: 150% ;','Control vs Shelter - Lardon Chase'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = FALSE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(ancom_gen_bac.LC.df),
+    `text-align` = 'center'
+    )
+
+saveWidget(res_gen.bac.LC, "data/ANCOM_gen_bac_LC.html", selfcontained = FALSE )
+
+# Filter results for taxa passing diff abund and sensitivity tests
+res_gen.bac.LC.df <- ancom_gen_bac.LC.df %>% filter(`diff_TreatmentDrought` & `passed_ss_TreatmentDrought`) %>% arrange(desc(`lfc_TreatmentDrought`))
+
+# Windmill Farm
+ancom_gen.bac.WF <- ancombc2(
+  bac.com.split$WINDMILL_farm, 
+  tax_level="Genus", 
+  fix_formula="Treatment", 
+  p_adj_method = "fdr", 
+  alpha=0.05,
+  n_cl=4, 
+  verbose=TRUE
+  )
+
+# Extract results, save to data table and export
+ancom_gen_bac.WF.df <- ancom_gen.bac.WF$res %>% select(taxon, contains("TreatmentDrought"))
+
+res_gen.bac.WF <- datatable(
+  ancom_gen_bac.WF.df,
+  colnames = c('Genera', 'LFC Shelter', 'SE Shelter', 'W-value Shelter', 'p-value Shelter', 'Adjusted p-value Shelter', 'Significant', 'Passed sensitivity'),
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: center; color:black;  font-size: 150% ;','Control vs Shelter - Windmill Farm'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = FALSE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(ancom_gen_bac.WF.df),
+    `text-align` = 'center'
+    )
+
+saveWidget(res_gen.bac.WF, "data/ANCOM_gen_bac_WF.html", selfcontained = FALSE )
+
+# Filter results for taxa passing diff abund and sensitivity tests
+res_gen.bac.WF.df <- ancom_gen_bac.WF.df %>% filter(`diff_TreatmentDrought` & `passed_ss_TreatmentDrought`) %>% arrange(desc(`lfc_TreatmentDrought`))
+
+res_gen.bac.CW
+res_gen.bac.HF
+res_gen.bac.J6
+res_gen.bac.J9
+res_gen.bac.LC
+res_gen.bac.WF
+
+```
+
+##### Comparing control samples between sites
+
+``` {r diff_abund_bac_gen_ctrl, echo=FALSE, message=FALSE, warning=FALSE}
+
+# Split phyloseq object
+bac.com_gen_treat.split <- Bac_Gen %>% metagMisc::phyloseq_sep_variable("Treatment")
+
+# Comparing control samples between sites
+ancom_gen.bac.control <- ancombc2(
+  bac.com_gen_treat.split$Control, 
+  tax_level="Genus", 
+  fix_formula="Site", 
+  group="Site", 
+  p_adj_method = "fdr",
+  global=TRUE,
+  alpha=0.05, 
+  pairwise=TRUE, 
+  n_cl=4, 
+  verbose=TRUE
+  )
+
+# Extract results
+ancom_gen_bac.ctrl.df <- ancom_gen.bac.control$res_pair
+ancom_gen_bac.ctrl.global <- ancom_gen.bac.control$res_global
+
+# Display global test result
+global.bac_gen.ctrl <- datatable(
+  ancom_gen_bac.ctrl.global,
+  colnames=c('Genera', 'W', 'P-value', 'Adjusted p-value', 'Differentially abundant', 'Passed sensitivity'),
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: center; color:black;  font-size: 150% ;','Global test results - sites (control)'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = FALSE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(ancom_gen_bac.ctrl.global),
+    `text-align` = 'center'
+    )
+
+saveWidget(global.bac_gen.ctrl, "data/ANCOM_gen_bac_ctrl_global.html", selfcontained = FALSE )
+
+# Split data into comparisons for each site
+
+# Harley Farms
+bac_gen_ctrl.HF <- ancom_gen_bac.ctrl.df %>% select(taxon, contains("HARLEY_FARMS_new2b"))
+
+outputHF.ctrl <- datatable(
+  bac_gen_ctrl.HF,
+  colnames = c('Genera', 'LFC CW vs HF', 'LFC J6 vs HF', 'LFC J9 vs HF', 'LFC LC vs HF', 'LFC WF vs HF', 'SE CW vs HF', 'SE J6 vs HF', 'SE J9 vs HF', 'SE LC vs HF', 'SE WF vs HF', 'W-value CW vs HF', 'W-value J6 vs HF', 'W-value J9 vs HF', 'W-value LC vs HF', 'W-value WF vs HF', 'P-value CW vs HF', 'P-value J6 vs HF', 'P-value J9 vs HF', 'P-value LC vs HF', 'P-value WF vs HF', 'Adjusted p-value CW vs HF', 'Adjusted p-value J6 vs HF', 'Adjusted p-value J9 vs HF', 'Adjusted p-value LC vs HF', 'Adjusted p-value WF vs HF', 'Significant CW vs HF', 'Significant J6 vs HF', 'Significant J9 vs HF', 'Significant LC vs HF', 'Significant WF vs HF', 'Passed sens. CW vs HF', 'Passed sens. J6 vs HF', 'Passed sens. J9 vs HF', 'Passed sens. LC vs HF', 'Passed sens. WF vs HF'),
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:black;  font-size: 150% ;','Harley Farms comparisons - control'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = TRUE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(bac_gen_ctrl.HF),
+    `text-align` = 'center'
+    )
+
+saveWidget(outputHF.ctrl, "data/ANCOMBC_gen_ctrl_HF.html", selfcontained = FALSE )
+
+# Castle Field West
+bac_gen_ctrl.CW <- ancom_gen_bac.ctrl.df[, c(1:6, 17:21, 32:36, 47:51, 62:66, 77:81, 92:96)]
+
+outputCW.ctrl <- datatable(
+  bac_gen_ctrl.CW,
+  colnames = c('Genera', 'LFC CW vs HF', 'LFC CW vs J6', 'LFC CW vs J9', 'LFC CW vs LC', 'LFC CW vs WF', 'SE CW vs HF', 'SE CW vs J6', 'SE CW vs J9', 'SE CW vs LC', 'SE CW vs WF', 'W-value CW vs HF', 'W-value CW vs J6', 'W-value CW vs J9', 'W-value CW vs LC', 'W-value CW vs WF', 'P-value CW vs HF', 'P-value CW vs J6', 'P-value CW vs J9', 'P-value CW vs LC', 'P-value CW vs WF', 'Adjusted p-value CW vs HF', 'Adjusted p-value CW vs J6', 'Adjusted p-value CW vs J9', 'Adjusted p-value CW vs LC', 'Adjusted p-value CW vs WF', 'Significant CW vs HF', 'Significant CW vs J6', 'Significant CW vs J9', 'Significant CW vs LC', 'Significant CW vs WF', 'Passed sens. CW vs HF', 'Passed sens. CW vs J6', 'Passed sens. CW vs J9', 'Passed sens. CW vs LC', 'Passed sens. CW vs WF'),
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:black;  font-size: 150% ;','Castle Field West comparisons - control'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = TRUE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(bac_gen_ctrl.CW),
+    `text-align` = 'center'
+    )
+
+saveWidget(outputCW.ctrl, "data/ANCOMBC_gen_ctrl_CW.html", selfcontained = FALSE )
+
+# Jemma 6
+bac_gen_ctrl.J6 <- ancom_gen_bac.ctrl.df %>% select(taxon, contains("Jemma_6"))
+
+outputJ6.ctrl <- datatable(
+  bac_gen_ctrl.J6,
+  caption = htmltools::tags$caption(style = 'caption-side: top; text-align: left; color:black;  font-size: 150% ;','Jemma 6 comparisons - control'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = TRUE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(bac_gen_ctrl.J6),
+    `text-align` = 'center'
+    )
+
+saveWidget(outputJ6.ctrl, "data/ANCOMBC_gen_ctrl_J6.html", selfcontained = FALSE)
+
+# Jemma 9
+bac_gen_ctrl.J9 <- ancom_gen_bac.ctrl.df %>% select(taxon, contains("Jemma_9"))
+
+outputJ9.ctrl <- datatable(
+  bac_gen_ctrl.J9,
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:black;  font-size: 150% ;','Jemma 9 comparisons - control'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = TRUE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(bac_gen_ctrl.J9),
+    `text-align` = 'center'
+    )
+
+saveWidget(outputJ9.ctrl, "data/ANCOMBC_gen_ctrl_J9.html", selfcontained = FALSE)
+
+# Lardon Chase
+bac_gen_ctrl.LC <- ancom_gen_bac.ctrl.df %>% select(taxon, contains("Lardon Chase"))
+
+outputLC.ctrl <- datatable(
+  bac_gen_ctrl.LC,
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:black;  font-size: 150% ;','Lardon Chase comparisons - control'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = TRUE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(bac_gen_ctrl.LC),
+    `text-align` = 'center'
+    )
+
+saveWidget(outputLC.ctrl, "data/ANCOMBC_gen_ctrl_LC.html", selfcontained = FALSE)
+
+# Windmill Farm
+bac_gen_ctrl.WF <- ancom_gen_bac.ctrl.df %>% select(taxon, contains("WINDMILL_farm"))
+
+outputWF.ctrl <- datatable(
+  bac_gen_ctrl.WF,
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:black;  font-size: 150% ;','Windmill Farm comparisons - control'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = TRUE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(bac_gen_ctrl.WF),
+    `text-align` = 'center'
+    )
+
+saveWidget(outputWF.ctrl, "data/ANCOMBC_gen_ctrl_WF.html", selfcontained = FALSE)
+
+outputCW.ctrl
+outputHF.ctrl
+outputJ6.ctrl
+outputJ9.ctrl
+outputLC.ctrl
+outputWF.ctrl
+
+```
+
+##### Comparing shelter samples between sites
+
+``` {r diff_abund_bac_gen_shelter, echo=FALSE, message=FALSE, warning=FALSE}
+
+# Comparing drought samples between sites
+ancom_gen.bac.drought <- ancombc2(
+  bac.com_gen_treat.split$Drought, 
+  tax_level="Genus", 
+  fix_formula="Site", 
+  group="Site", 
+  p_adj_method = "fdr",
+  global=TRUE,
+  alpha=0.05, 
+  pairwise=TRUE, 
+  n_cl=4, 
+  verbose=TRUE
+  )
+
+# Extract results
+ancom_gen_bac.drought.df <- ancom_gen.bac.drought$res_pair
+ancom_gen_bac.drought.global <- ancom_gen.bac.drought$res_global
+
+# Display global test result
+global.bac_gen.dt <- datatable(
+  ancom_gen_bac.drought.global,
+  colnames=c('Genera', 'W', 'P-value', 'Adjusted p-value', 'Differentially abundant', 'Passed sensitivity'),
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: center; color:black;  font-size: 150% ;','Global test results - sites (rain shelter)'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = FALSE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(ancom_gen_bac.drought.global),
+    `text-align` = 'center'
+    )
+
+saveWidget(global.bac_gen.dt, "data/ANCOM_gen_bac_drought_global.html", selfcontained = FALSE )
+
+# Split data into comparisons for each site
+
+# Harley Farms
+bac_gen_dt.HF <- ancom_gen_bac.drought.df %>% select(taxon, contains("HARLEY_FARMS_new2b"))
+
+outputHF.dt <- datatable(
+  bac_gen_dt.HF,
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:black;  font-size: 150% ;','Harley Farms comparisons - rain shelter'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = TRUE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(bac_gen_dt.HF),
+    `text-align` = 'center'
+    )
+
+saveWidget(outputHF.dt, "data/ANCOMBC_gen_drought_HF.html", selfcontained = FALSE )
+
+# Castle Field West
+bac_gen_dt.CW <- ancom_gen_bac.drought.df[, c(1:6, 17:21, 32:36, 47:51, 62:66, 77:81, 92:96)]
+
+outputCW.dt <- datatable(
+  bac_gen_dt.CW,
+   caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:black;  font-size: 150% ;','Castle Field West comparisons - rain shelter'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = TRUE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(bac_gen_dt.CW),
+    `text-align` = 'center'
+    )
+
+saveWidget(outputCW.dt, "data/ANCOMBC_gen_drought_CW.html", selfcontained = FALSE )
+
+# Jemma 6
+bac_gen_dt.J6 <- ancom_gen_bac.drought.df %>% select(taxon, contains("Jemma_6"))
+
+outputJ6.dt <- datatable(
+  bac_gen_dt.J6,
+   caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:black;  font-size: 150% ;','Jemma 6 comparisons - rain shelter'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = TRUE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(bac_gen_dt.J6),
+    `text-align` = 'center'
+    )
+
+saveWidget(outputJ6.dt, "data/ANCOMBC_gen_drought_J6.html", selfcontained = FALSE)
+
+# Jemma 9
+bac_gen_dt.J9 <- ancom_gen_bac.drought.df %>% select(taxon, contains("Jemma_9"))
+
+outputJ9.dt <- datatable(
+  bac_gen_dt.J9,
+   caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:black;  font-size: 150% ;','Jemma 9 comparisons - rain shelter'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = TRUE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(bac_gen_dt.J9),
+    `text-align` = 'center'
+    )
+
+saveWidget(outputJ9.dt, "data/ANCOMBC_gen_drought_J9.html", selfcontained = FALSE)
+
+# Lardon Chase
+bac_gen_dt.LC <- ancom_gen_bac.drought.df %>% select(taxon, contains("Lardon Chase"))
+
+outputLC.dt <- datatable(
+  bac_gen_dt.LC,
+   caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:black;  font-size: 150% ;','Lardon Chase comparisons - rain shelter'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = TRUE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(bac_gen_dt.LC),
+    `text-align` = 'center'
+    )
+
+saveWidget(outputLC.dt, "data/ANCOMBC_gen_drought_LC.html", selfcontained = FALSE)
+
+# Windmill Farm
+bac_gen_dt.WF <- ancom_gen_bac.drought.df %>% select(taxon, contains("WINDMILL_farm"))
+
+outputWF.dt <- datatable(
+  bac_gen_dt.WF,
+   caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:black;  font-size: 150% ;','Windmill Farm comparisons - rain shelter'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = TRUE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(bac_gen_dt.WF),
+    `text-align` = 'center'
+    )
+
+saveWidget(outputWF.dt, "data/ANCOMBC_gen_drought_WF.html", selfcontained = FALSE)
+
+global.bac_gen.dt
+outputCW.dt
+outputHF.dt
+outputJ6.dt
+outputJ9.dt
+outputLC.dt
+outputWF.dt
+
+```
+
+#### Family - control vs rain shelter on each site
+
+No differentially abundant families were identified between control and water stress samples on any site
+
+``` {r diff_abund_bac_fam_group, echo=FALSE, message = FALSE, warning=FALSE}
+
+# Castle Field West
+ancom_fam.bac.CW <- ancombc2(
+  bac.com.split$Castle_Field_West_W, 
+  tax_level="Family", 
+  fix_formula="Treatment", 
+  p_adj_method = "fdr", 
+  alpha=0.05,
+  n_cl=4, 
+  verbose=TRUE
+  )
+
+ancom_fam_bac.CW.df <- ancom_fam.bac.CW$res %>% select(taxon, contains("TreatmentDrought"))
+
+res_fam.bac.CW <- datatable(
+  ancom_fam_bac.CW.df,
+  colnames = c('Family', 'LFC Shelter', 'SE Shelter', 'W-value Shelter', 'p-value Shelter', 'Adjusted p-value Shelter', 'Significant', 'Passed sensitivity'),
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: center; color:black;  font-size: 150% ;','Control vs Shelter - Castle Field West'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = FALSE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(ancom_fam_bac.CW.df),
+    `text-align` = 'center'
+    )
+
+saveWidget(res_fam.bac.CW, "data/ANCOMBC_fam_bac_CW.html", selfcontained = FALSE )
+
+# Filter results for taxa passing diff abund and sensitivity tests
+res_fam.bac.CW.df <- ancom_fam_bac.CW.df %>% filter(`diff_TreatmentDrought` & `passed_ss_TreatmentDrought`) %>% arrange(desc(`lfc_TreatmentDrought`))
+
+# Harley Farms
+ancom_fam.bac.HF <- ancombc2(
+  bac.com.split$HARLEY_FARMS_new2b, 
+  tax_level="Family", 
+  fix_formula="Treatment", 
+  p_adj_method = "fdr", 
+  alpha=0.05, 
+  n_cl=4, 
+  verbose=TRUE
+  )
+
+ancom_fam_bac.HF.df <- ancom_fam.bac.HF$res %>% select(taxon, contains("TreatmentDrought"))
+
+res_fam.bac.HF <- datatable(
+  ancom_fam_bac.HF.df,
+  colnames = c('Family', 'LFC Shelter', 'SE Shelter', 'W-value Shelter', 'p-value Shelter', 'Adjusted p-value Shelter', 'Significant', 'Passed sensitivity'),
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: center; color:black;  font-size: 150% ;','Control vs Shelter - Harley Farms'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = FALSE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(ancom_fam_bac.HF.df),
+    `text-align` = 'center'
+    )
+
+saveWidget(res_fam.bac.HF, "data/ANCOMBC_fam_bac_HF.html", selfcontained = FALSE )
+
+# Filter results for taxa passing diff abund and sensitivity tests
+res_fam.bac.HF.df <- ancom_fam_bac.HF.df %>% filter(`diff_TreatmentDrought` & `passed_ss_TreatmentDrought`) %>% arrange(desc(`lfc_TreatmentDrought`))
+
+# Jemma 6
+ancom_fam.bac.J6 <- ancombc2(
+  bac.com.split$Jemma_6, 
+  tax_level="Family", 
+  fix_formula="Treatment", 
+  p_adj_method = "fdr", 
+  alpha=0.05,
+  n_cl=4, 
+  verbose=TRUE
+  )
+
+ancom_fam_bac.J6.df <- ancom_fam.bac.J6$res %>% select(taxon, contains("TreatmentDrought"))
+
+res_fam.bac.J6 <- datatable(
+  ancom_fam_bac.J6.df,
+  colnames = c('Family', 'LFC Shelter', 'SE Shelter', 'W-value Shelter', 'p-value Shelter', 'Adjusted p-value Shelter', 'Significant', 'Passed sensitivity'),
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: center; color:black;  font-size: 150% ;','Control vs Shelter - Jemma 6'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = FALSE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(ancom_fam_bac.J6.df),
+    `text-align` = 'center'
+    )
+
+saveWidget(res_fam.bac.J6, "data/ANCOMBC_fam_bac_J6.html", selfcontained = FALSE )
+
+# Filter results for taxa passing diff abund and sensitivity tests
+res_fam.bac.J6.df <- ancom_fam_bac.J6.df %>% filter(`diff_TreatmentDrought` & `passed_ss_TreatmentDrought`) %>% arrange(desc(`lfc_TreatmentDrought`))
+
+# Jemma 9
+ancom_fam.bac.J9 <- ancombc2(
+  bac.com.split$Jemma_9, 
+  tax_level="Family", 
+  fix_formula="Treatment", 
+  p_adj_method = "fdr", 
+  alpha=0.05, 
+  n_cl=4, 
+  verbose=TRUE
+  )
+
+ancom_fam_bac.J9.df <- ancom_fam.bac.J9$res %>% select(taxon, contains("TreatmentDrought"))
+
+res_fam.bac.J9 <- datatable(
+  ancom_fam_bac.J9.df,
+  colnames = c('Family', 'LFC Shelter', 'SE Shelter', 'W-value Shelter', 'p-value Shelter', 'Adjusted p-value Shelter', 'Significant', 'Passed sensitivity'),
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: center; color:black;  font-size: 150% ;','Control vs Shelter - Jemma 9'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = FALSE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(ancom_fam_bac.J9.df),
+    `text-align` = 'center'
+    )
+
+saveWidget(res_fam.bac.J9, "data/ANCOMBC_fam_bac_J9.html", selfcontained = FALSE )
+
+# Filter results for taxa passing diff abund and sensitivity tests
+res_fam.bac.J9.df <- ancom_fam_bac.J9.df %>% filter(`diff_TreatmentDrought` & `passed_ss_TreatmentDrought`) %>% arrange(desc(`lfc_TreatmentDrought`))
+
+# Lardon Chase
+ancom_fam.bac.LC <- ancombc2(
+  bac.com.split$`Lardon Chase`, 
+  tax_level="Family", 
+  fix_formula="Treatment", 
+  p_adj_method = "fdr", 
+  alpha=0.05, 
+  n_cl=4, 
+  verbose=TRUE
+  )
+
+ancom_fam_bac.LC.df <- ancom_fam.bac.LC$res %>% select(taxon, contains("TreatmentDrought"))
+
+res_fam.bac.LC <- datatable(
+  ancom_fam_bac.LC.df,
+  colnames = c('Family', 'LFC Shelter', 'SE Shelter', 'W-value Shelter', 'p-value Shelter', 'Adjusted p-value Shelter', 'Significant', 'Passed sensitivity'),
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: center; color:black;  font-size: 150% ;','Control vs Shelter - Lardon Chase'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = FALSE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(ancom_fam_bac.LC.df),
+    `text-align` = 'center'
+    )
+
+saveWidget(res_fam.bac.LC, "data/ANCOMBC_fam_bac_LC.html", selfcontained = FALSE )
+
+# Filter results for taxa passing diff abund and sensitivity tests
+res_fam.bac.LC.df <- ancom_fam_bac.LC.df %>% filter(`diff_TreatmentDrought` & `passed_ss_TreatmentDrought`) %>% arrange(desc(`lfc_TreatmentDrought`))
+
+# Windmill Farm
+ancom_fam.bac.WF <- ancombc2(
+  bac.com.split$WINDMILL_farm, 
+  tax_level="Family", 
+  fix_formula="Treatment", 
+  p_adj_method = "fdr", 
+  alpha=0.05, 
+  n_cl=4, 
+  verbose=TRUE
+  )
+
+ancom_fam_bac.WF.df <- ancom_fam.bac.WF$res %>% select(taxon, contains("TreatmentDrought"))
+
+res_fam.bac.WF <- datatable(
+  ancom_fam_bac.WF.df,
+  colnames = c('Family', 'LFC Shelter', 'SE Shelter', 'W-value Shelter', 'p-value Shelter', 'Adjusted p-value Shelter', 'Significant', 'Passed sensitivity'),
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: center; color:black;  font-size: 150% ;','Control vs Shelter - Windmill Farm'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = FALSE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(ancom_fam_bac.WF.df),
+    `text-align` = 'center'
+    )
+
+saveWidget(res_fam.bac.WF, "data/ANCOMBC_fam_bac_WF.html", selfcontained = FALSE )
+
+# Filter results for taxa passing diff abund and sensitivity tests
+res_fam.bac.WF.df <- ancom_fam_bac.WF.df %>% filter(`diff_TreatmentDrought` & `passed_ss_TreatmentDrought`) %>% arrange(desc(`lfc_TreatmentDrought`))
+
+res_fam.bac.CW
+res_fam.bac.HF
+res_fam.bac.J6
+res_fam.bac.J9
+res_fam.bac.LC
+res_fam.bac.WF
+
+```
+
+#### Phylum
+
+##### Treatment
+
+No phyla were identified as differentially abundant when comparing control and water stress samples
+
+``` {r diff_abund_bac_phyla_treat, echo=FALSE, message=FALSE, warning=FALSE}
+
+ancom_phyla_treat.bac <- ancombc2(
+  BacGenSites, 
+  tax_level="Phylum", 
+  fix_formula="Treatment", 
+  p_adj_method = "fdr", 
+  alpha=0.05,
+  n_cl=4, 
+  verbose=TRUE
+  )
+
+ancom_phyla_treat.bac.df <- ancom_phyla_treat.bac$res
+
+# Filter the results so only those columns pertaining to the comparison between control and drought are included
+ancom_phyla_treat.bac.df <- ancom_phyla_treat.bac.df %>% select(taxon, contains("TreatmentDrought"))
+
+output_treat.ph.bac <- datatable(
+  ancom_phyla_treat.bac.df,
+  colnames = c('Phyla', 'LFC Shelter', 'SE Shelter', 'W-value Shelter', 'p-value Shelter', 'Adjusted p-value Shelter', 'Significant', 'Passed sensitivity'),
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: center; color:black;  font-size: 150% ;','Control vs Shelter'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = FALSE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(ancom_phyla_treat.bac.df),
+    `text-align` = 'center'
+    )
+
+saveWidget(output_treat.ph.bac, "data/ANCOMBC_ph_treat_bac.html", selfcontained = FALSE )
+
+# Filter differentially abundant genera that pass both the differential abundance and sensitivity tests
+dif_phylum_treat.bac <- ancom_phyla_treat.bac.df %>% filter(diff_TreatmentDrought & passed_ss_TreatmentDrought) %>% arrange(desc(lfc_TreatmentDrought))
+
+output_treat.ph.bac
+
+```
+
+
+##### Comparing control and shelter samples on each site
+
+No differentially abundant phyla were identified as responding to changes in soil moisture on any site
+
+``` {r diff_abund_bac_phyla_sites, echo=FALSE, message=FALSE, warning=FALSE}
+
+# Castle Field West
+ancom_ph.bac.CW <- ancombc2(
+  bac.com.split$Castle_Field_West_W, 
+  tax_level="Phylum", 
+  fix_formula="Treatment", 
+  p_adj_method = "fdr", 
+  alpha=0.05,
+  n_cl=4, 
+  verbose=TRUE
+  )
+
+# Extract results, save to data table and export
+ancom_ph_bac.CW.df <- ancom_ph.bac.CW$res %>% select(taxon, contains("TreatmentDrought"))
+
+res_ph.bac.CW <- datatable(
+  ancom_ph_bac.CW.df,
+  colnames = c('Phyla', 'LFC Shelter', 'SE Shelter', 'W-value Shelter', 'p-value Shelter', 'Adjusted p-value Shelter', 'Significant', 'Passed sensitivity'),
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: center; color:black;  font-size: 150% ;','Control vs Shelter - Castle Field West'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = FALSE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(ancom_ph_bac.CW.df),
+    `text-align` = 'center'
+    )
+
+saveWidget(res_ph.bac.CW, "data/ANCOM_phyla_bac_CW.html", selfcontained = FALSE )
+
+# Filter results for taxa passing diff abund and sensitivity tests
+res_ph.bac.CW.df <- ancom_ph_bac.CW.df %>% filter(`diff_TreatmentDrought` & `passed_ss_TreatmentDrought`) %>% arrange(desc(`lfc_TreatmentDrought`))
+
+# Harley Farms
+ancom_ph.bac.HF <- ancombc2(
+  bac.com.split$HARLEY_FARMS_new2b, 
+  tax_level="Phylum", 
+  fix_formula="Treatment", 
+  p_adj_method = "fdr", 
+  alpha=0.05,
+  n_cl=4, 
+  verbose=TRUE
+  )
+
+# Extract results, save to data table and export
+ancom_ph_bac.HF.df <- ancom_ph.bac.HF$res %>% select(taxon, contains("TreatmentDrought"))
+
+res_ph.bac.HF <- datatable(
+  ancom_ph_bac.HF.df,
+  colnames = c('Phyla', 'LFC Shelter', 'SE Shelter', 'W-value Shelter', 'p-value Shelter', 'Adjusted p-value Shelter', 'Significant', 'Passed sensitivity'),
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: center; color:black;  font-size: 150% ;','Control vs Shelter - Harley Farms'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = FALSE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(ancom_ph_bac.HF.df),
+    `text-align` = 'center'
+    )
+
+saveWidget(res_ph.bac.HF, "data/ANCOM_phyla_bac_HF.html", selfcontained = FALSE )
+
+# Filter results for taxa passing diff abund and sensitivity tests
+res_ph.bac.HF.df <- ancom_ph_bac.HF.df %>% filter(`diff_TreatmentDrought` & `passed_ss_TreatmentDrought`) %>% arrange(desc(`lfc_TreatmentDrought`))
+
+# Jemma 6
+ancom_ph.bac.J6 <- ancombc2(
+  bac.com.split$Jemma_6, 
+  tax_level="Phylum", 
+  fix_formula="Treatment",
+  p_adj_method = "fdr", 
+  alpha=0.05,
+  n_cl=4, 
+  verbose=TRUE
+  )
+
+# Extract results, save to data table and export
+ancom_ph_bac.J6.df <- ancom_ph.bac.J6$res %>% select(taxon, contains("TreatmentDrought"))
+
+res_ph.bac.J6 <- datatable(
+  ancom_ph_bac.J6.df,
+  colnames = c('Phyla', 'LFC Shelter', 'SE Shelter', 'W-value Shelter', 'p-value Shelter', 'Adjusted p-value Shelter', 'Significant', 'Passed sensitivity'),
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: center; color:black;  font-size: 150% ;','Control vs Shelter - Jemma 6'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = FALSE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(ancom_ph_bac.J6.df),
+    `text-align` = 'center'
+    )
+
+saveWidget(res_ph.bac.J6, "data/ANCOM_phyla_bac_J6.html", selfcontained = FALSE )
+
+# Filter results for taxa passing diff abund and sensitivity tests
+res_ph.bac.J6.df <- ancom_ph_bac.J6.df %>% filter(`diff_TreatmentDrought` & `passed_ss_TreatmentDrought`) %>% arrange(desc(`lfc_TreatmentDrought`))
+
+# Jemma 9
+ancom_ph.bac.J9 <- ancombc2(
+  bac.com.split$Jemma_9, 
+  tax_level="Phylum", 
+  fix_formula="Treatment", 
+  p_adj_method = "fdr", 
+  alpha=0.05,
+  n_cl=4, 
+  verbose=TRUE
+  )
+
+# Extract results, save to data table and export
+ancom_ph_bac.J9.df <- ancom_ph.bac.J9$res %>% select(taxon, contains("TreatmentDrought"))
+
+res_ph.bac.J9 <- datatable(
+  ancom_ph_bac.J9.df,
+  colnames = c('Phyla', 'LFC Shelter', 'SE Shelter', 'W-value Shelter', 'p-value Shelter', 'Adjusted p-value Shelter', 'Significant', 'Passed sensitivity'),
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: center; color:black;  font-size: 150% ;','Control vs Shelter - Jemma 9'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = FALSE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(ancom_ph_bac.J9.df),
+    `text-align` = 'center'
+    )
+
+saveWidget(res_ph.bac.J9, "data/ANCOM_phyla_bac_J9.html", selfcontained = FALSE )
+
+# Filter results for taxa passing diff abund and sensitivity tests
+res_ph.bac.J9.df <- ancom_ph_bac.J9.df %>% filter(`diff_TreatmentDrought` & `passed_ss_TreatmentDrought`) %>% arrange(desc(`lfc_TreatmentDrought`))
+
+# Lardon Chase
+ancom_ph.bac.LC <- ancombc2(
+  bac.com.split$`Lardon Chase`, 
+  tax_level="Phylum", 
+  fix_formula="Treatment",
+  p_adj_method = "fdr", 
+  alpha=0.05,
+  n_cl=4, 
+  verbose=TRUE
+  )
+
+# Extract results, save to data table and export
+ancom_ph_bac.LC.df <- ancom_ph.bac.LC$res %>% select(taxon, contains("TreatmentDrought"))
+
+res_ph.bac.LC <- datatable(
+  ancom_ph_bac.LC.df,
+  colnames = c('Phyla', 'LFC Shelter', 'SE Shelter', 'W-value Shelter', 'p-value Shelter', 'Adjusted p-value Shelter', 'Significant', 'Passed sensitivity'),
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: center; color:black;  font-size: 150% ;','Control vs Shelter - Lardon Chase'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = FALSE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(ancom_ph_bac.LC.df),
+    `text-align` = 'center'
+    )
+
+saveWidget(res_ph.bac.LC, "data/ANCOM_phylum_bac_LC.html", selfcontained = FALSE )
+
+# Filter results for taxa passing diff abund and sensitivity tests
+res_ph.bac.LC.df <- ancom_ph_bac.LC.df %>% filter(`diff_TreatmentDrought` & `passed_ss_TreatmentDrought`) %>% arrange(desc(`lfc_TreatmentDrought`))
+
+# Windmill Farm
+ancom_ph.bac.WF <- ancombc2(
+  bac.com.split$WINDMILL_farm, 
+  tax_level="Phylum", 
+  fix_formula="Treatment",
+  p_adj_method = "fdr", 
+  alpha=0.05, 
+  n_cl=4, 
+  verbose=TRUE
+  )
+
+# Extract results, save to data table and export
+ancom_ph_bac.WF.df <- ancom_ph.bac.WF$res %>% select(taxon, contains("TreatmentDrought"))
+
+res_ph.bac.WF <- datatable(
+  ancom_ph_bac.WF.df,
+  colnames = c('Phyla', 'LFC Shelter', 'SE Shelter', 'W-value Shelter', 'p-value Shelter', 'Adjusted p-value Shelter', 'Significant', 'Passed sensitivity'),
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: center; color:black;  font-size: 150% ;','Control vs Shelter - Windmill Farm'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = FALSE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(ancom_ph_bac.WF.df),
+    `text-align` = 'center'
+    )
+
+saveWidget(res_ph.bac.WF, "data/ANCOM_phyla_bac_WF.html", selfcontained = FALSE )
+
+# Filter results for taxa passing diff abund and sensitivity tests
+res_ph.bac.WF.df <- ancom_ph_bac.WF.df %>% filter(`diff_TreatmentDrought` & `passed_ss_TreatmentDrought`) %>% arrange(desc(`lfc_TreatmentDrought`))
+
+res_ph.bac.CW
+res_ph.bac.HF
+res_ph.bac.J6
+res_ph.bac.J9
+res_ph.bac.LC
+res_ph.bac.WF
+```
+##### Comparing control samples between sites
+
+``` {r diff_abund_bac_phyla_ctrl, echo=FALSE, message=FALSE, warning=FALSE}
+
+ancom_ph.bac.control <- ancombc2(
+  bac.com_gen_treat.split$Control, 
+  tax_level="Phylum", 
+  fix_formula="Site", 
+  group="Site", 
+  p_adj_method = "fdr",
+  global = TRUE,
+  alpha=0.05, 
+  pairwise=TRUE, 
+  n_cl=4, 
+  verbose=TRUE
+  )
+
+# Extract results, save to data table and export
+ancom_ph_bac.ctrl.df <- ancom_ph.bac.control$res_pair
+ancom_ph.bac.ctrl.global <- ancom_ph.bac.control$res_global
+
+# Display global test result
+global.bac_ph.ctrl <- datatable(
+  ancom_ph.bac.ctrl.global,
+  colnames=c('Phyla', 'W', 'P-value', 'Adjusted p-value', 'Differentially abundant', 'Passed sensitivity'),
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: center; color:black;  font-size: 150% ;','Global test results - sites (control)'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = FALSE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(ancom_ph.bac.ctrl.global),
+    `text-align` = 'center'
+    )
+
+saveWidget(global.bac_ph.ctrl, "data/ANCOM_gen_bac_ctrl_global.html", selfcontained = FALSE )
+
+global.bac.filt.ctrl <- ancom_ph.bac.ctrl.global %>% filter(diff_abn & passed_ss) %>% arrange(desc(W))
+
+
+# Split data into comparisons for each site
+
+# Harley Farms
+bac_ph_ctrl.HF <- ancom_ph_bac.ctrl.df %>% select(taxon, contains("HARLEY_FARMS_new2b"))
+
+outputHF.ph.ctrl <- datatable(
+  bac_ph_ctrl.HF,
+  colnames = c('Phyla', 'LFC CW vs HF', 'LFC J6 vs HF', 'LFC J9 vs HF', 'LFC LC vs HF', 'LFC WF vs HF', 'SE CW vs HF', 'SE J6 vs HF', 'SE J9 vs HF', 'SE LC vs HF', 'SE WF vs HF', 'W-value CW vs HF', 'W-value J6 vs HF', 'W-value J9 vs HF', 'W-value LC vs HF', 'W-value WF vs HF', 'P-value CW vs HF', 'P-value J6 vs HF', 'P-value J9 vs HF', 'P-value LC vs HF', 'P-value WF vs HF', 'Adjusted p-value CW vs HF', 'Adjusted p-value J6 vs HF', 'Adjusted p-value J9 vs HF', 'Adjusted p-value LC vs HF', 'Adjusted p-value WF vs HF', 'Significant CW vs HF', 'Significant J6 vs HF', 'Significant J9 vs HF', 'Significant LC vs HF', 'Significant WF vs HF', 'Passed sens. CW vs HF', 'Passed sens. J6 vs HF', 'Passed sens. J9 vs HF', 'Passed sens. LC vs HF', 'Passed sens. WF vs HF'),
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:black;  font-size: 150% ;','Harley Farms comparisons - control'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = TRUE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(bac_ph_ctrl.HF),
+    `text-align` = 'center'
+    )
+
+saveWidget(outputHF.ph.ctrl, "data/ANCOMBC_phyla_ctrl_HF.html", selfcontained = FALSE )
+
+# Castle Field West
+bac_ph_ctrl.CW <- ancom_ph_bac.ctrl.df[, c(1:6, 17:21, 32:36, 47:51, 62:66, 77:81, 92:96)]
+
+outputCW.ph.ctrl <- datatable(
+  bac_ph_ctrl.CW,
+  colnames = c('Phyla', 'LFC CW vs HF', 'LFC CW vs J6', 'LFC CW vs J9', 'LFC CW vs LC', 'LFC CW vs WF', 'SE CW vs HF', 'SE CW vs J6', 'SE CW vs J9', 'SE CW vs LC', 'SE CW vs WF', 'W-value CW vs HF', 'W-value CW vs J6', 'W-value CW vs J9', 'W-value CW vs LC', 'W-value CW vs WF', 'P-value CW vs HF', 'P-value CW vs J6', 'P-value CW vs J9', 'P-value CW vs LC', 'P-value CW vs WF', 'Adjusted p-value CW vs HF', 'Adjusted p-value CW vs J6', 'Adjusted p-value CW vs J9', 'Adjusted p-value CW vs LC', 'Adjusted p-value CW vs WF', 'Significant CW vs HF', 'Significant CW vs J6', 'Significant CW vs J9', 'Significant CW vs LC', 'Significant CW vs WF', 'Passed sens. CW vs HF', 'Passed sens. CW vs J6', 'Passed sens. CW vs J9', 'Passed sens. CW vs LC', 'Passed sens. CW vs WF'),
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:black;  font-size: 150% ;','Castle Field West comparisons - control'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = TRUE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(bac_ph_ctrl.CW),
+    `text-align` = 'center'
+    )
+
+saveWidget(outputCW.ph.ctrl, "data/ANCOMBC_phyla_ctrl_CW.html", selfcontained = FALSE )
+
+# Jemma 6
+bac_ph_ctrl.J6 <- ancom_ph_bac.ctrl.df %>% select(taxon, contains("Jemma_6"))
+
+outputJ6.ph.ctrl <- datatable(
+  bac_ph_ctrl.J6,
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:black;  font-size: 150% ;','Jemma 6 comparisons - control'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = TRUE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(bac_ph_ctrl.J6),
+    `text-align` = 'center'
+    )
+
+saveWidget(outputJ6.ph.ctrl, "data/ANCOMBC_phyla_ctrl_J6.html", selfcontained = FALSE)
+
+# Jemma 9
+bac_ph_ctrl.J9 <- ancom_ph_bac.ctrl.df %>% select(taxon, contains("Jemma_9"))
+
+outputJ9.ph.ctrl <- datatable(
+  bac_ph_ctrl.J9,
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:black;  font-size: 150% ;','Jemma 9 comparisons - control'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = TRUE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(bac_ph_ctrl.J9),
+    `text-align` = 'center'
+    )
+
+saveWidget(outputJ9.ph.ctrl, "data/ANCOMBC_phyla_ctrl_J9.html", selfcontained = FALSE)
+
+# Lardon Chase
+bac_ph_ctrl.LC <- ancom_ph_bac.ctrl.df %>% select(taxon, contains("Lardon Chase"))
+
+outputLC.ph.ctrl <- datatable(
+  bac_ph_ctrl.LC,
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:black;  font-size: 150% ;','Lardon Chase comparisons - control'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = TRUE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(bac_ph_ctrl.LC),
+    `text-align` = 'center'
+    )
+
+saveWidget(outputLC.ph.ctrl, "data/ANCOMBC_ph_ctrl_LC.html", selfcontained = FALSE)
+
+# Windmill Farm
+bac_ph_ctrl.WF <- ancom_ph_bac.ctrl.df %>% select(taxon, contains("WINDMILL_farm"))
+
+outputWF.ph.ctrl <- datatable(
+  bac_ph_ctrl.WF,
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:black;  font-size: 150% ;','Windmill Farm comparisons - control'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = TRUE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(bac_ph_ctrl.WF),
+    `text-align` = 'center'
+    )
+
+saveWidget(outputWF.ph.ctrl, "data/ANCOMBC_phyla_ctrl_WF.html", selfcontained = FALSE)
+
+global.bac_ph.ctrl
+outputCW.ph.ctrl
+outputHF.ph.ctrl
+outputJ6.ph.ctrl
+outputJ9.ph.ctrl
+outputLC.ph.ctrl
+outputWF.ph.ctrl
+
+```
+##### Comparing shelter samples between sites
+
+``` {r diff_abund_bac_phyla_drought, echo=FALSE, message=FALSE, warning=FALSE}
+
+# Comparing drought samples between sites
+ancom_ph.bac.drought <- ancombc2(
+  bac.com_gen_treat.split$Drought, 
+  tax_level="Phylum", 
+  fix_formula="Site", 
+  group="Site", 
+  p_adj_method = "fdr",
+  global = TRUE,
+  alpha=0.05, 
+  pairwise=TRUE, 
+  n_cl=4, 
+  verbose=TRUE
+  )
+
+# Extract results
+ancom_ph_bac.drought.df <- ancom_ph.bac.drought$res_pair
+ancom_ph_bac.drought.global <- ancom_ph.bac.drought$res_global
+
+# Display global test result
+global.bac_ph.dt <- datatable(
+  ancom_ph_bac.drought.global,
+  colnames=c('Phyla', 'W', 'P-value', 'Adjusted p-value', 'Differentially abundant', 'Passed sensitivity'),
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: center; color:black;  font-size: 150% ;','Global test results - sites (rain shelter)'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = FALSE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(ancom_ph_bac.drought.global),
+    `text-align` = 'center'
+    )
+
+saveWidget(global.bac_gen.dt, "data/ANCOM_ph_bac_drought_global.html", selfcontained = FALSE )
+
+global.bac.filt.shelter <- ancom_ph_bac.drought.global %>% filter(diff_abn & passed_ss) %>% arrange(desc(W))
+
+# Split data into comparisons for each site
+
+# Harley Farms
+bac_ph_dt.HF <- ancom_ph_bac.drought.df %>% select(taxon, contains("HARLEY_FARMS_new2b"))
+
+outputHF.ph.dt <- datatable(
+  bac_ph_dt.HF,
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:black;  font-size: 150% ;','Harley Farms comparisons - rain shelter'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = TRUE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(bac_ph_dt.HF),
+    `text-align` = 'center'
+    )
+
+saveWidget(outputHF.ph.dt, "data/ANCOMBC_phyla_drought_HF.html", selfcontained = FALSE )
+
+# Castle Field West
+bac_ph_dt.CW <- ancom_ph_bac.drought.df[, c(1:6, 17:21, 32:36, 47:51, 62:66, 77:81, 92:96)]
+
+outputCW.ph.dt <- datatable(
+  bac_ph_dt.CW,
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:black;  font-size: 150% ;', 'Castle Field West comparisons - rain shelter'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = TRUE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(bac_ph_dt.CW),
+    `text-align` = 'center'
+    )
+
+saveWidget(outputCW.ph.dt, "data/ANCOMBC_phyla_drought_CW.html", selfcontained = FALSE )
+
+# Jemma 6
+bac_ph_dt.J6 <- ancom_ph_bac.drought.df %>% select(taxon, contains("Jemma_6"))
+
+outputJ6.ph.dt <- datatable(
+  bac_ph_dt.J6,
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:black;  font-size: 150% ;','Jemma 6 comparisons - rain shelter'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = TRUE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(bac_ph_dt.J6),
+    `text-align` = 'center'
+    )
+
+saveWidget(outputJ6.ph.dt, "data/ANCOMBC_phyla_drought_J6.html", selfcontained = FALSE)
+
+# Jemma 9
+bac_ph_dt.J9 <- ancom_ph_bac.drought.df %>% select(taxon, contains("Jemma_9"))
+
+outputJ9.ph.dt <- datatable(
+  bac_ph_dt.J9,
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:black;  font-size: 150% ;','Jemma 9 comparisons - rain shelter'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = TRUE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(bac_ph_dt.J9),
+    `text-align` = 'center'
+    )
+
+saveWidget(outputJ9.ph.dt, "data/ANCOMBC_phyla_drought_J9.html", selfcontained = FALSE)
+
+# Lardon Chase
+bac_ph_dt.LC <- ancom_ph_bac.drought.df %>% select(taxon, contains("Lardon Chase"))
+
+outputLC.ph.dt <- datatable(
+  bac_ph_dt.LC,
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:black;  font-size: 150% ;','Lardon Chase comparisons - rain shelter'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = TRUE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(bac_ph_dt.LC),
+    `text-align` = 'center'
+    )
+
+saveWidget(outputLC.ph.dt, "data/ANCOMBC_phyla_drought_LC.html", selfcontained = FALSE)
+
+# Windmill Farm
+bac_ph_dt.WF <- ancom_ph_bac.drought.df %>% select(taxon, contains("WINDMILL_farm"))
+
+outputWF.ph.dt <- datatable(
+  bac_ph_dt.WF,
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:black;  font-size: 150% ;','Windmill Farm comparisons - rain shelter'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = TRUE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(bac_ph_dt.WF),
+    `text-align` = 'center'
+    )
+
+saveWidget(outputWF.ph.dt, "data/ANCOMBC_phyla_drought_WF.html", selfcontained = FALSE)
+
+global.bac_ph.dt
+outputCW.ph.dt
+outputHF.ph.dt
+outputJ6.ph.dt
+outputJ9.ph.dt
+outputLC.ph.dt
+outputWF.ph.dt
+
+```
+
+### Fungi
+
+#### Genera
+
+##### Treatment
+
+No differentially abundant genera were identified between control and water stressed samples
+
+``` {r diff_abund_fun_gen_treat, echo = FALSE, message = FALSE, warning=FALSE}
+
+# Ensure treatment, site and group variables are factors for both aggregated and non-aggregated data
+sample_data(FunGenSites)$Treatment <- as.factor(sample_data(FunGenSites)$Treatment)
+sample_data(FunGenSites)$Site <- as.factor(sample_data(FunGenSites)$Site)
+sample_data(FunGenSites)$Field_no <- as.factor(sample_data(FunGenSites)$Field_no)
+sample_data(FunGenSites)$Group_by <- as.factor(sample_data(FunGenSites)$Group_by)
+
+sample_data(Fun_Gen)$Treatment <- as.factor(sample_data(Fun_Gen)$Treatment)
+sample_data(Fun_Gen)$Site <- as.factor(sample_data(Fun_Gen)$Site)
+sample_data(Fun_Gen)$Field_no <- as.factor(sample_data(Fun_Gen)$Field_no)
+sample_data(Fun_Gen)$Group_by <- as.factor(sample_data(Fun_Gen)$Group_by)
+
+# Run ANCOMBC for treatment variable
+ancom_gen_treat.fun <- ancombc2(
+  FunGenSites, 
+  tax_level="Genus", 
+  fix_formula="Treatment",
+  p_adj_method = "fdr", 
+  alpha=0.05,
+  n_cl=4, 
+  verbose=TRUE
+  )
+
+# Extract results into a data frame for analysis
+ancom_gen_treat.fun.df <- ancom_gen_treat.fun$res
+
+# Filter the results so only those columns pertaining to the comparison between control and drought are included
+ancom_gen_treat.fun.df <- ancom_gen_treat.fun.df %>% select(taxon, contains("TreatmentDrought"))
+
+output_treat.gen.fun <- datatable(
+  ancom_gen_treat.fun.df,
+  colnames = c('Genera', 'LFC Shelter', 'SE Shelter', 'W-value Shelter', 'p-value Shelter', 'Adjusted p-value Shelter', 'Significant', 'Passed sensitivity'),
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: center; color:black;  font-size: 150% ;','Control vs Shelter'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = FALSE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(ancom_gen_treat.fun.df),
+    `text-align` = 'center'
+    )
+
+saveWidget(output_treat.gen.fun, "data/ANCOMBC_gen_treat_fun.html", selfcontained = FALSE )
+
+# Filter differentially abundant genera that pass both the differential abundance and sensitivity tests
+
+dif_gen_treat.fun <- ancom_gen_treat.fun.df %>%  filter(diff_TreatmentDrought & passed_ss_TreatmentDrought) %>% arrange(desc(lfc_TreatmentDrought))
+
+```
+
+##### Comparing control and shelter samples for each site
+
+``` {r diff_abund_gen_fun_group, echo=FALSE, message = FALSE, warning=FALSE}
+
+# Splitting data by site
+fun.com.split <- Fun_Gen %>% metagMisc::phyloseq_sep_variable("Site")
+
+# Run differential abundance analysis for fungi comparing treatments on Jemma 6, Jemma 9 and Lardon Chase
+
+# Jemma 6
+ancom_gen.fun.J6 <- ancombc2(
+  fun.com.split$Jemma_6,
+  tax_level="Genus", 
+  fix_formula="Treatment",
+  p_adj_method = "fdr", 
+  alpha=0.05,
+  n_cl=4, 
+  verbose=TRUE
+  )
+
+# Extract data
+ancom_gen_fun.J6.df <- ancom_gen.fun.J6$res %>% select(taxon, contains("TreatmentDrought"))
+
+# Export data frame to html for analysis
+res_gen.fun.J6 <- datatable(
+  ancom_gen_fun.J6.df,
+  colnames = c('Genera', 'LFC Shelter', 'SE Shelter', 'W-value Shelter', 'p-value Shelter', 'Adjusted p-value Shelter', 'Significant', 'Passed sensitivity'),
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: center; color:black;  font-size: 150% ;','Control vs Shelter - Jemma 6'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = FALSE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(ancom_gen_fun.J6.df),
+    `text-align` = 'center'
+    )
+
+saveWidget(res_gen.fun.J6, "data/ANCOMBC_gen_fun_J6.html", selfcontained = FALSE )
+
+# Filter so only significant taxa that pass sensitivity test are included
+res_gen.fun.J6.df <- ancom_gen_fun.J6.df %>% filter(`diff_TreatmentDrought` & `passed_ss_TreatmentDrought`) %>% arrange(desc(`lfc_TreatmentDrought`))
+
+# Jemma 9
+ancom_gen.fun.J9 <- ancombc2(
+  fun.com.split$Jemma_9,
+  tax_level="Genus", 
+  fix_formula="Treatment",
+  p_adj_method = "fdr", 
+  alpha=0.05,
+  n_cl=4, 
+  verbose=TRUE
+  )
+
+# Extract data
+ancom_gen_fun.J9.df <- ancom_gen.fun.J9$res %>% select(taxon, contains("TreatmentDrought"))
+
+# Export data frame to html for analysis
+res_gen.fun.J9 <- datatable(
+  ancom_gen_fun.J9.df,
+  colnames = c('Genera', 'LFC Shelter', 'SE Shelter', 'W-value Shelter', 'p-value Shelter', 'Adjusted p-value Shelter', 'Significant', 'Passed sensitivity'),
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: center; color:black;  font-size: 150% ;','Control vs Shelter - Jemma 9'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = FALSE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(ancom_gen_fun.J9.df),
+    `text-align` = 'center'
+    )
+
+saveWidget(res_gen.fun.J9, "data/ANCOMBC_gen_fun_J9.html", selfcontained = FALSE )
+
+res_gen.fun.J9.df <- ancom_gen_fun.J9.df %>% filter(`diff_TreatmentDrought` & `passed_ss_TreatmentDrought`) %>% arrange(desc(`lfc_TreatmentDrought`))
+
+# Lardon Chase
+ancom_gen.fun.LC <- ancombc2(
+  fun.com.split$`Lardon Chase`,
+  tax_level="Genus", 
+  fix_formula="Treatment",
+  p_adj_method = "fdr", 
+  alpha=0.05,
+  n_cl=4, 
+  verbose=TRUE
+  )
+
+# Extract pairwise data
+ancom_gen_fun.LC.df <- ancom_gen.fun.LC$res %>% select(taxon, contains("TreatmentDrought"))
+
+# Export data frame to html for analysis
+res_gen.fun.LC <- datatable(
+  ancom_gen_fun.LC.df,
+  colnames = c('Genera', 'LFC Shelter', 'SE Shelter', 'W-value Shelter', 'p-value Shelter', 'Adjusted p-value Shelter', 'Significant', 'Passed sensitivity'),
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: center; color:black;  font-size: 150% ;','Control vs Shelter - Lardon Chase'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = FALSE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(ancom_gen_fun.LC.df),
+    `text-align` = 'center'
+    )
+
+saveWidget(res_gen.fun.LC, "data/ANCOMBC_gen_fun_LC.html", selfcontained = FALSE )
+
+res_gen.fun.LC.df <- ancom_gen_fun.LC.df %>% filter(`diff_TreatmentDrought` & `passed_ss_TreatmentDrought`) %>% arrange(desc(`lfc_TreatmentDrought`))
+
+res_gen.fun.J6
+res_gen.fun.J9
+res_gen.fun.LC
+
+```
+
+##### Comparing control samples between sites
+
+``` {r diff_abund_fun_gen_ctrl, echo=FALSE, message = FALSE,  warning = FALSE}
+
+# Filter out Castle Field West as there is only 1 replica for control
+Fun_Gen.ctrl.filt <- subset_samples(Fun_Gen, Site != "Castle_Field_West_W")
+
+# Split phyloseq object
+fun.com_gen_treat.split <- Fun_Gen.ctrl.filt %>% metagMisc::phyloseq_sep_variable("Treatment")
+
+# Comparing control samples between sites
+ancom_gen.fun.control <- ancombc2(
+  fun.com_gen_treat.split$Control, 
+  tax_level="Genus", 
+  fix_formula="Site", 
+  group="Site", 
+  p_adj_method = "fdr",
+  global = TRUE,
+  alpha=0.05, 
+  pairwise=TRUE, 
+  n_cl=4, 
+  verbose=TRUE
+  )
+
+# Extract results
+ancom_gen_fun.ctrl.df <- ancom_gen.fun.control$res_pair
+ancom_gen_fun.ctrl.global <- ancom_gen.fun.control$res_global
+
+# Display global results
+global.fun_gen.ctrl <- datatable(
+  ancom_gen_fun.ctrl.global,
+  colnames=c('Genera', 'W', 'P-value', 'Adjusted p-value', 'Differentially abundant', 'Passed sensitivity'),
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: center; color:black;  font-size: 150% ;','Global test results - sites (control)'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = FALSE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(ancom_gen_fun.ctrl.global),
+    `text-align` = 'center'
+    )
+
+saveWidget(global.fun_gen.ctrl, "data/ANCOM_gen_fun_ctrl_global.html", selfcontained = FALSE )
+
+# Split data into comparisons for each site
+
+# Jemma 6
+fun_gen_ctrl.J6 <- ancom_gen_fun.ctrl.df[, c(1:4, 8:10, 14:16, 20:22, 26:28, 32:34, 38:40)]
+
+outputJ6.fun.ctrl <- datatable(
+  fun_gen_ctrl.J6,
+  caption = htmltools::tags$caption(style = 'caption-side: top; text-align: left; color:black;  font-size: 150% ;','Jemma 6 comparisons - control'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = TRUE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(fun_gen_ctrl.J6),
+    `text-align` = 'center'
+    )
+
+saveWidget(outputJ6.fun.ctrl, "data/ANCOMBC_gen_fun_ctrl_J6.html", selfcontained = FALSE )
+
+# Jemma 9
+fun_gen_ctrl.J9 <- ancom_gen_fun.ctrl.df %>% select(taxon, contains("Jemma_9"))
+
+outputJ9.fun.ctrl <- datatable(
+  fun_gen_ctrl.J9,
+  caption = htmltools::tags$caption(style = 'caption-side: top; text-align: left; color:black;  font-size: 150% ;','Jemma 9 comparisons - control'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = TRUE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(fun_gen_ctrl.J9),
+    `text-align` = 'center'
+    )
+
+saveWidget(outputJ9.fun.ctrl, "data/ANCOMBC_gen_fun_ctrl_J9.html", selfcontained = FALSE )
+
+# Lardon Chase
+
+fun_gen_ctrl.LC <- ancom_gen_fun.ctrl.df %>% select(taxon, contains("Lardon Chase"))
+
+outputLC.fun.ctrl <- datatable(
+  fun_gen_ctrl.LC,
+  caption = htmltools::tags$caption(style = 'caption-side: top; text-align: left; color:black;  font-size: 150% ;','Lardon Chase comparisons - control'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = TRUE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(fun_gen_ctrl.LC),
+    `text-align` = 'center'
+    )
+
+saveWidget(outputLC.fun.ctrl, "data/ANCOMBC_gen_fun_ctrl_LC.html", selfcontained = FALSE )
+
+# Windmill Farm
+fun_gen_ctrl.WF <- ancom_gen_fun.ctrl.df %>% select(taxon, contains("WINDMILL_farm"))
+
+outputWF.fun.ctrl <- datatable(
+  fun_gen_ctrl.WF,
+  caption = htmltools::tags$caption(style = 'caption-side: top; text-align: left; color:black;  font-size: 150% ;','Windmill Farm comparisons - control'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = TRUE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(fun_gen_ctrl.WF),
+    `text-align` = 'center'
+    )
+
+saveWidget(outputWF.fun.ctrl, "data/ANCOMBC_gen_fun_ctrl_WF.html", selfcontained = FALSE )
+
+global.fun_gen.ctrl
+outputJ6.fun.ctrl
+outputJ9.fun.ctrl
+outputLC.fun.ctrl
+outputWF.fun.ctrl
+
+```
+##### Comparing shelter samples between sites
+
+``` {r diff_abund_fun_gen_drought, echo=FALSE, message = FALSE,  warning = FALSE}
+
+# Filter out Windmill Farm as there is only 1 replica
+Fun_Gen.drought.filt <- subset_samples(Fun_Gen, Site != "WINDMILL_farm")
+
+# Split phyloseq object
+fun.com_gen_treat2.split <- Fun_Gen.drought.filt %>% metagMisc::phyloseq_sep_variable("Treatment")
+
+# Comparing control samples between sites
+ancom_gen.fun.drought <- ancombc2(
+  fun.com_gen_treat2.split$Drought, 
+  tax_level="Genus", 
+  fix_formula="Site", 
+  group="Site", 
+  p_adj_method = "fdr",
+  global=TRUE,
+  alpha=0.05, 
+  pairwise=TRUE, 
+  n_cl=4, 
+  verbose=TRUE
+  )
+
+# Extract results
+ancom_gen_fun.dt.df <- ancom_gen.fun.drought$res_pair
+ancom_gen_fun.dt.global <- ancom_gen.fun.drought$res_global
+
+# Display global results
+global.fun_gen.dt <- datatable(
+  ancom_gen_fun.dt.global,
+  colnames=c('Genera', 'W', 'P-value', 'Adjusted p-value', 'Differentially abundant', 'Passed sensitivity'),
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: center; color:black;  font-size: 150% ;','Global test results - sites (rain shelter)'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = FALSE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(ancom_gen_fun.dt.global),
+    `text-align` = 'center'
+    )
+
+saveWidget(global.fun_gen.ctrl, "data/ANCOM_gen_fun_drought_global.html", selfcontained = FALSE )
+
+# Split data into comparisons for each site
+
+# Castle Field West
+fun_gen_dt.CW <- ancom_gen_fun.dt.df[, c(1:4, 8:10, 14:16, 20:22, 26:28, 32:34, 38:40)]
+
+outputCW.fun.dt <- datatable(
+  fun_gen_dt.CW,
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:black;  font-size: 150% ;','Castle Field West comparisons - rain shelter'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = TRUE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(fun_gen_dt.CW),
+    `text-align` = 'center'
+    )
+
+saveWidget(outputCW.fun.dt, "data/ANCOMBC_gen_fun_drought_CW.html", selfcontained = FALSE )
+
+# Jemma 6
+fun_gen_dt.J6 <- ancom_gen_fun.dt.df %>% select(taxon, contains("Jemma_6"))
+
+outputJ6.fun.dt <- datatable(
+  fun_gen_dt.J6,
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:black;  font-size: 150% ;','Jemma 6 comparisons - rain shelter'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = TRUE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(fun_gen_dt.J6),
+    `text-align` = 'center'
+    )
+
+saveWidget(outputJ6.fun.dt, "data/ANCOMBC_gen_fun_drought_J6.html", selfcontained = FALSE )
+
+# Jemma 9
+fun_gen_dt.J9 <- ancom_gen_fun.dt.df %>% select(taxon, contains("Jemma_9"))
+
+outputJ9.fun.dt <- datatable(
+  fun_gen_dt.J9,
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:black;  font-size: 150% ;','Jemma 9 comparisons - rain shelter'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = TRUE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(fun_gen_dt.J9),
+    `text-align` = 'center'
+    )
+
+saveWidget(outputJ9.fun.dt, "data/ANCOMBC_gen_fun_drought_J9.html", selfcontained = FALSE )
+
+# Lardon Chase
+
+fun_gen_dt.LC <- ancom_gen_fun.dt.df %>% select(taxon, contains("Lardon Chase"))
+
+outputLC.fun.dt <- datatable(
+  fun_gen_dt.LC,
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:black;  font-size: 150% ;','Lardon Chase comparisons - rain shelter'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = TRUE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(fun_gen_dt.LC),
+    `text-align` = 'center'
+    )
+
+saveWidget(outputLC.fun.dt, "data/ANCOMBC_gen_fun_drought_LC.html", selfcontained = FALSE )
+
+global.fun_gen.dt
+outputCW.fun.dt
+outputJ6.fun.dt
+outputJ9.fun.dt
+outputLC.fun.dt
+
+
+```
+
+
+
+#### Family - control vs rain shelter on individual sites
+
+``` {r diff_abund_fun_family, echo = FALSE, message = FALSE,  warning = FALSE}
+
+# Run differential abundance analysis for fungi comparing treatments on each site
+
+# Jemma 6
+ancom_fam.fun.J6 <- ancombc2(
+  fun.com.split$Jemma_6,
+  tax_level="Family", 
+  fix_formula="Treatment",
+  p_adj_method = "fdr", 
+  alpha=0.05,
+  n_cl=4, 
+  verbose=TRUE
+  )
+
+# Extract data
+ancom_fam_fun.J6.df <- ancom_fam.fun.J6$res %>% select(taxon, contains("TreatmentDrought"))
+
+# Export data frame to html for analysis
+res_fam.fun.J6 <- datatable(
+  ancom_fam_fun.J6.df,
+  colnames = c('Family', 'LFC Shelter', 'SE Shelter', 'W-value Shelter', 'p-value Shelter', 'Adjusted p-value Shelter', 'Significant', 'Passed sensitivity'),
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: center; color:black;  font-size: 150% ;','Control vs Shelter - Jemma 6'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = FALSE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(ancom_fam_fun.J6.df),
+    `text-align` = 'center'
+    )
+
+saveWidget(res_fam.fun.J6, "data/ANCOMBC_fam_fun_J6.html", selfcontained = FALSE )
+
+res_fam.fun.J6.df <- ancom_fam_fun.J6.df %>% filter(`diff_TreatmentDrought` & `passed_ss_TreatmentDrought`) %>% arrange(desc(`lfc_TreatmentDrought`))
+
+# Jemma 9
+ancom_fam.fun.J9 <- ancombc2(
+  fun.com.split$Jemma_9,
+  tax_level="Family", 
+  fix_formula="Treatment",
+  p_adj_method = "fdr", 
+  alpha=0.05,
+  n_cl=4, 
+  verbose=TRUE
+  )
+
+# Extract data
+ancom_fam_fun.J9.df <- ancom_fam.fun.J9$res %>% select(taxon, contains("TreatmentDrought"))
+
+# Export data frame to html for analysis
+res_fam.fun.J9 <- datatable(
+  ancom_fam_fun.J9.df,
+  colnames = c('Family', 'LFC Shelter', 'SE Shelter', 'W-value Shelter', 'p-value Shelter', 'Adjusted p-value Shelter', 'Significant', 'Passed sensitivity'),
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: center; color:black;  font-size: 150% ;','Control vs Shelter - Jemma 9'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = FALSE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(ancom_fam_fun.J9.df),
+    `text-align` = 'center'
+    )
+
+saveWidget(res_fam.fun.J9, "data/ANCOMBC_fam_fun_J9.html", selfcontained = FALSE )
+
+res_fam.fun.J9.df <- ancom_fam_fun.J9.df %>% filter(`diff_TreatmentDrought` & `passed_ss_TreatmentDrought`) %>% arrange(desc(`lfc_TreatmentDrought`))
+
+# Lardon Chase
+ancom_fam.fun.LC <- ancombc2(
+  fun.com.split$`Lardon Chase`,
+  tax_level="Family", 
+  fix_formula="Treatment",
+  p_adj_method = "fdr", 
+  alpha=0.05,
+  n_cl=4, 
+  verbose=TRUE
+  )
+
+# Extract data
+ancom_fam_fun.LC.df <- ancom_fam.fun.LC$res %>% select(taxon, contains("TreatmentDrought"))
+
+# Export data frame to html for analysis
+res_fam.fun.LC <- datatable(
+  ancom_fam_fun.LC.df,
+  colnames = c('Family', 'LFC Shelter', 'SE Shelter', 'W-value Shelter', 'p-value Shelter', 'Adjusted p-value Shelter', 'Significant', 'Passed sensitivity'),
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: center; color:black;  font-size: 150% ;','Control vs Shelter - Lardon Chase'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = FALSE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(ancom_fam_fun.LC.df),
+    `text-align` = 'center'
+    )
+
+saveWidget(res_fam.fun.LC, "data/ANCOMBC_fam_fun_LC.html", selfcontained = FALSE )
+
+res_fam.fun.LC.df <- ancom_fam_fun.LC.df %>% filter(`diff_TreatmentDrought` & `passed_ss_TreatmentDrought`) %>% arrange(desc(`lfc_TreatmentDrought`))
+
+res_fam.fun.J6
+res_fam.fun.J9
+res_fam.fun.LC
+
+```
+
+#### Phylum
+
+##### Treatment
+
+``` {r diff_abund_fun_phyla_treat, echo = FALSE, message = FALSE,  warning = FALSE}
+
+# Run ANCOMBC for treatment variables
+ancom_phyla_treat.fun <- ancombc2(
+  FunGenSites, 
+  tax_level="Phylum", 
+  fix_formula="Treatment", 
+  p_adj_method = "fdr", 
+  alpha=0.05, 
+  n_cl=4, 
+  verbose=TRUE
+  )
+
+ancom_phyla_treat.fun.df <- ancom_phyla_treat.fun$res
+
+ancom_phyla_treat.fun.df <- ancom_phyla_treat.fun.df %>% select(taxon, contains("TreatmentDrought"))
+
+output_treat.ph.fun <- datatable(
+  ancom_phyla_treat.fun.df,
+  colnames = c('Phyla', 'LFC Shelter', 'SE Shelter', 'W-value Shelter', 'p-value Shelter', 'Adjusted p-value Shelter', 'Significant', 'Passed sensitivity'),
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: center; color:black;  font-size: 150% ;','Control vs Shelter'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = FALSE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(ancom_phyla_treat.fun.df),
+    `text-align` = 'center'
+    )
+
+# Export data frame to html for analysis
+saveWidget(output_treat.ph.fun, "data/ANCOMBC_phyla_treat_fun.html", selfcontained = FALSE )
+
+# Filter differentially abundant genera that pass both the differential abundance and sensitivity tests
+
+dif_phylum_treat.fun <- ancom_phyla_treat.fun.df %>% filter(diff_TreatmentDrought & passed_ss_TreatmentDrought) %>% arrange(desc(lfc_TreatmentDrought))
+
+output_treat.ph.fun
+
+```
+##### Comparing control and shelter samples on each site
+
+No differentially abundant phyla were identified as responding to changes in soil moisture on any site
+
+``` {r diff_abund_fun_phyla_sites, echo=FALSE, message=FALSE, warning=FALSE}
+
+# Jemma 6
+ancom_ph.fun.J6 <- ancombc2(
+  fun.com.split$Jemma_6, 
+  tax_level="Phylum", 
+  fix_formula="Treatment",
+  p_adj_method = "fdr", 
+  alpha=0.05,
+  n_cl=4, 
+  verbose=TRUE
+  )
+
+# Extract results, save to data table and export
+ancom_ph_fun.J6.df <- ancom_ph.fun.J6$res %>% select(taxon, contains("TreatmentDrought"))
+
+res_ph.fun.J6 <- datatable(
+  ancom_ph_fun.J6.df,
+  colnames = c('Phyla', 'LFC Shelter', 'SE Shelter', 'W-value Shelter', 'p-value Shelter', 'Adjusted p-value Shelter', 'Significant', 'Passed sensitivity'),
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: center; color:black;  font-size: 150% ;','Control vs Shelter - Jemma 6'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = FALSE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(ancom_ph_fun.J6.df),
+    `text-align` = 'center'
+    )
+
+saveWidget(res_ph.fun.J6, "data/ANCOM_phyla_fun_J6.html", selfcontained = FALSE )
+
+# Filter results for taxa passing diff abund and sensitivity tests
+res_ph.fun.J6.df <- ancom_ph_fun.J6.df %>% filter(`diff_TreatmentDrought` & `passed_ss_TreatmentDrought`) %>% arrange(desc(`lfc_TreatmentDrought`))
+
+# Jemma 9
+ancom_ph.fun.J9 <- ancombc2(
+  fun.com.split$Jemma_9, 
+  tax_level="Phylum", 
+  fix_formula="Treatment", 
+  p_adj_method = "fdr", 
+  alpha=0.05,
+  n_cl=4, 
+  verbose=TRUE
+  )
+
+# Extract results, save to data table and export
+ancom_ph_fun.J9.df <- ancom_ph.fun.J9$res %>% select(taxon, contains("TreatmentDrought"))
+
+res_ph.fun.J9 <- datatable(
+  ancom_ph_fun.J9.df,
+  colnames = c('Phyla', 'LFC Shelter', 'SE Shelter', 'W-value Shelter', 'p-value Shelter', 'Adjusted p-value Shelter', 'Significant', 'Passed sensitivity'),
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: center; color:black;  font-size: 150% ;','Control vs Shelter - Jemma 9'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = FALSE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(ancom_ph_fun.J9.df),
+    `text-align` = 'center'
+    )
+
+saveWidget(res_ph.fun.J9, "data/ANCOM_phyla_fun_J9.html", selfcontained = FALSE )
+
+# Filter results for taxa passing diff abund and sensitivity tests
+res_ph.fun.J9.df <- ancom_ph_fun.J9.df %>% filter(`diff_TreatmentDrought` & `passed_ss_TreatmentDrought`) %>% arrange(desc(`lfc_TreatmentDrought`))
+
+# Lardon Chase
+ancom_ph.fun.LC <- ancombc2(
+  fun.com.split$`Lardon Chase`, 
+  tax_level="Phylum", 
+  fix_formula="Treatment",
+  p_adj_method = "fdr", 
+  alpha=0.05,
+  n_cl=4, 
+  verbose=TRUE
+  )
+
+# Extract results, save to data table and export
+ancom_ph_fun.LC.df <- ancom_ph.fun.LC$res %>% select(taxon, contains("TreatmentDrought"))
+
+res_ph.fun.LC <- datatable(
+  ancom_ph_fun.LC.df,
+  colnames = c('Phyla', 'LFC Shelter', 'SE Shelter', 'W-value Shelter', 'p-value Shelter', 'Adjusted p-value Shelter', 'Significant', 'Passed sensitivity'),
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: center; color:black;  font-size: 150% ;','Control vs Shelter - Lardon Chase'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = FALSE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(ancom_ph_fun.LC.df),
+    `text-align` = 'center'
+    )
+
+saveWidget(res_ph.fun.LC, "data/ANCOM_phylum_fun_LC.html", selfcontained = FALSE )
+
+# Filter results for taxa passing diff abund and sensitivity tests
+res_ph.fun.LC.df <- ancom_ph_fun.LC.df %>% filter(`diff_TreatmentDrought` & `passed_ss_TreatmentDrought`) %>% arrange(desc(`lfc_TreatmentDrought`))
+
+res_ph.fun.J6
+res_ph.fun.J9
+res_ph.fun.LC
+
+```
+
+##### Comparing control samples between sites
+
+``` {r diff_abund_fun_phyla_ctrl, echo=FALSE, message = FALSE,  warning = FALSE}
+
+# Comparing control samples between sites
+ancom_phyla.fun.control <- ancombc2(
+  fun.com_gen_treat.split$Control, 
+  tax_level="Phylum", 
+  fix_formula="Site", 
+  group="Site", 
+  p_adj_method = "fdr",
+  global = TRUE,
+  alpha=0.05, 
+  pairwise=TRUE, 
+  n_cl=4, 
+  verbose=TRUE
+  )
+
+# Extract results
+ancom_ph_fun.ctrl.df <- ancom_phyla.fun.control$res_pair
+ancom_ph_fun.ctrl.global <- ancom_phyla.fun.control$res_global
+
+global.fun.filt.ctrl <- ancom_ph_fun.ctrl.global %>% filter(diff_abn & passed_ss) %>% arrange(desc(W))
+
+# Display global results
+global.fun_ph.ctrl <- datatable(
+  ancom_ph_fun.ctrl.global,
+  colnames=c('Phyla', 'W', 'P-value', 'Adjusted p-value', 'Differentially abundant', 'Passed sensitivity'),
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: center; color:black;  font-size: 150% ;','Global test results - sites (control)'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = FALSE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(ancom_ph_fun.ctrl.global),
+    `text-align` = 'center'
+    )
+
+saveWidget(global.fun_ph.ctrl, "data/ANCOM_ph_fun_ctrl_global.html", selfcontained = FALSE )
+
+
+# Split data into comparisons for each site
+
+# Jemma 6
+fun_ph_ctrl.J6 <- ancom_ph_fun.ctrl.df[, c(1:4, 8:10, 14:16, 20:22, 26:28, 32:34, 38:40)]
+
+outputJ6.fun_ph.ctrl <- datatable(
+  fun_ph_ctrl.J6,
+  caption = htmltools::tags$caption(style = 'caption-side: top; text-align: left; color:black;  font-size: 150% ;','Jemma 6 comparisons - control'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = TRUE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(fun_ph_ctrl.J6),
+    `text-align` = 'center'
+    )
+
+saveWidget(outputJ6.fun_ph.ctrl, "data/ANCOMBC_ph_fun_ctrl_J6.html", selfcontained = FALSE )
+
+# Jemma 9
+fun_ph_ctrl.J9 <- ancom_ph_fun.ctrl.df %>% select(taxon, contains("Jemma_9"))
+
+outputJ9.fun_ph.ctrl <- datatable(
+  fun_ph_ctrl.J9,
+  caption = htmltools::tags$caption(style = 'caption-side: top; text-align: left; color:black;  font-size: 150% ;','Jemma 9 comparisons - control'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = TRUE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(fun_ph_ctrl.J9),
+    `text-align` = 'center'
+    )
+
+saveWidget(outputJ9.fun_ph.ctrl, "data/ANCOMBC_ph_fun_ctrl_J9.html", selfcontained = FALSE )
+
+# Lardon Chase
+
+fun_ph_ctrl.LC <- ancom_ph_fun.ctrl.df %>% select(taxon, contains("Lardon Chase"))
+
+outputLC.fun_ph.ctrl <- datatable(
+  fun_ph_ctrl.LC,
+  caption = htmltools::tags$caption(style = 'caption-side: top; text-align: left; color:black;  font-size: 150% ;','Lardon Chase comparisons - control'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = TRUE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(fun_ph_ctrl.LC),
+    `text-align` = 'center'
+    )
+
+saveWidget(outputLC.fun_ph.ctrl, "data/ANCOMBC_ph_fun_ctrl_LC.html", selfcontained = FALSE )
+
+# Windmill Farm
+fun_ph_ctrl.WF <- ancom_ph_fun.ctrl.df %>% select(taxon, contains("WINDMILL_farm"))
+
+outputWF.fun_ph.ctrl <- datatable(
+  fun_ph_ctrl.WF,
+  caption = htmltools::tags$caption(style = 'caption-side: top; text-align: left; color:black;  font-size: 150% ;','Windmill Farm comparisons - control'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = TRUE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(fun_ph_ctrl.WF),
+    `text-align` = 'center'
+    )
+
+saveWidget(outputWF.fun_ph.ctrl, "data/ANCOMBC_ph_fun_ctrl_WF.html", selfcontained = FALSE )
+
+global.fun_ph.ctrl
+outputJ6.fun_ph.ctrl
+outputJ9.fun_ph.ctrl
+outputLC.fun_ph.ctrl
+outputWF.fun_ph.ctrl
+
+```
+
+##### Comparing shelter samples between sites
+
+``` {r diff_abund_fun_phyla_drought, echo=FALSE, message = FALSE,  warning = FALSE}
+
+# Comparing shelter samples between sites
+ancom_phyla.fun.drought <- ancombc2(
+  fun.com_gen_treat2.split$Drought, 
+  tax_level="Phylum", 
+  fix_formula="Site", 
+  group="Site", 
+  p_adj_method = "fdr",
+  global=TRUE,
+  alpha=0.05, 
+  pairwise=TRUE, 
+  n_cl=4, 
+  verbose=TRUE
+  )
+
+# Extract results
+ancom_ph_fun.dt.df <- ancom_phyla.fun.drought$res_pair
+ancom_ph_fun.dt.global <- ancom_phyla.fun.drought$res_global
+
+# Display global results
+global.fun_ph.dt <- datatable(
+  ancom_ph_fun.dt.global,
+  colnames=c('Phyla', 'W', 'P-value', 'Adjusted p-value', 'Differentially abundant', 'Passed sensitivity'),
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: center; color:black;  font-size: 150% ;','Global test results - sites (rain shelter)'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = FALSE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(ancom_ph_fun.dt.global),
+    `text-align` = 'center'
+    )
+
+saveWidget(global.fun_ph.ctrl, "data/ANCOM_ph_fun_drought_global.html", selfcontained = FALSE )
+
+global.fun.filt.shelt <- ancom_ph_fun.dt.global %>% filter(diff_abn & passed_ss) %>% arrange(desc(W))
+
+# Split data into comparisons for each site
+
+# Castle Field West
+fun_ph_dt.CW <- ancom_ph_fun.dt.df[, c(1:4, 8:10, 14:16, 20:22, 26:28, 32:34, 38:40)]
+
+outputCW.fun_ph.dt <- datatable(
+  fun_ph_dt.CW,
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:black;  font-size: 150% ;','Castle Field West comparisons - rain shelter'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = TRUE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(fun_ph_dt.CW),
+    `text-align` = 'center'
+    )
+
+saveWidget(outputCW.fun_ph.dt, "data/ANCOMBC_ph_fun_drought_CW.html", selfcontained = FALSE )
+
+# Jemma 6
+fun_ph_dt.J6 <- ancom_ph_fun.dt.df %>% select(taxon, contains("Jemma_6"))
+
+outputJ6.fun_ph.dt <- datatable(
+  fun_ph_dt.J6,
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:black;  font-size: 150% ;','Jemma 6 comparisons - rain shelter'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = TRUE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(fun_ph_dt.J6),
+    `text-align` = 'center'
+    )
+
+saveWidget(outputJ6.fun_ph.dt, "data/ANCOMBC_ph_fun_drought_J6.html", selfcontained = FALSE )
+
+# Jemma 9
+fun_ph_dt.J9 <- ancom_ph_fun.dt.df %>% select(taxon, contains("Jemma_9"))
+
+outputJ9.fun_ph.dt <- datatable(
+  fun_ph_dt.J9,
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:black;  font-size: 150% ;','Jemma 9 comparisons - rain shelter'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = TRUE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(fun_ph_dt.J9),
+    `text-align` = 'center'
+    )
+
+saveWidget(outputJ9.fun_ph.dt, "data/ANCOMBC_ph_fun_drought_J9.html", selfcontained = FALSE )
+
+# Lardon Chase
+
+fun_ph_dt.LC <- ancom_ph_fun.dt.df %>% select(taxon, contains("Lardon Chase"))
+
+outputLC.fun_ph.dt <- datatable(
+  fun_ph_dt.LC,
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: left; color:black;  font-size: 150% ;','Lardon Chase comparisons - rain shelter'),
+  options = list(
+    pageLength = 10,
+    scrollX = TRUE,
+    autoWidth = TRUE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(fun_ph_dt.LC),
+    `text-align` = 'center'
+    )
+
+saveWidget(outputLC.fun_ph.dt, "data/ANCOMBC_ph_fun_drought_LC.html", selfcontained = FALSE )
+
+global.fun_ph.dt
+outputCW.fun_ph.dt
+outputJ6.fun_ph.dt
+outputJ9.fun_ph.dt
+outputLC.fun_ph.dt
+
+
+```
