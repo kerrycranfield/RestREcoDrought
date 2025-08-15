@@ -162,7 +162,14 @@ Soils have been identified as one of the most biodiverse habitats, and are home 
 According to the Environment Agency, soil moisture deficits across the UK have increased in March and April 2025. Additionally more frequent droughts are predicted due to climate change, therefore a greater understanding of how soil microbial communities respond to changes in soil moisture is key to building resilience in grassland ecosystems. 
 The aim of this study is to investigate how microbial species diversity, community composition and relationships between bacterial and fungal communities in grassland soils respond to changes in soil moisture levels.
 DNA sequences from bacterial 16S rRNA and fungal ITS from soil samples collected by the Restoring Resilient Ecosystems (RestREco) ecological restoration project will be analysed using bioinformatics tools.
-The methods will include running computational analysis tools using the Crescent2 high performance computing facilities and/or RStudio, testing hypotheses using statistical tests and placing findings in the context of current literature in scientific journals. 
+The methods will include running computational analysis tools using the Crescent2 high performance computing facilities and/or RStudio, testing hypotheses using statistical tests and placing findings in the context of current literature in scientific journals.
+
+This page focuses on alpha and beta diversity and taxonomy.
+
+For differential abundance results, visit: <a href="https://kerrycranfield.github.io/RestREcoDrought/restreco_diff_abund.html" target="_blank">https://kerrycranfield.github.io/RestREcoDrought/restreco_diff_abund.html</a>
+
+For functional analysis, visit: <a href="https://kerrycranfield.github.io/RestREcoDrought/restreco_func.html" target="_blank">https://kerrycranfield.github.io/RestREcoDrought/restreco_func.html</a>
+
 
 ```{r dependencies, echo=FALSE, message=FALSE, warning=FALSE}
 library(BiocManager)
