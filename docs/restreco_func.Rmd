@@ -178,6 +178,7 @@ library(RColorBrewer)
 library(plotly)
 library(ggplot2)
 library(vegan)
+library(tidyr)
 
 ```
 
@@ -820,7 +821,7 @@ path_res.kw.dt <- datatable(
   rownames = FALSE
 ) %>% 
   formatStyle(
-    columns = names(df),
+    columns = names(path_shelt.kw.filt),
     `text-align` = 'center'
 )
 
@@ -843,7 +844,7 @@ path_res.glm.dt <- datatable(
   rownames = FALSE
 ) %>% 
   formatStyle(
-    columns = names(df),
+    columns = names(path_shelt.glm.filt),
     `text-align` = 'center'
 )
 
