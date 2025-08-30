@@ -39,21 +39,16 @@ echo ""
 # Folders
 base_folder="/mnt/beegfs/home/kerry.hathway/thesis"
 data_folder="${base_folder}/data/ITS/"
-results_folder_1="${base_folder}/results/taxonomy_ITS_99_funonly"
+results_folder_1="${base_folder}/results/process_ITS"
 results_folder_2="${base_folder}/results/taxonomy_ITS_dyn_funonly"
 
 # Remove Harley Farm and other missing samples (F2C1, F2C2, F20S2, F20S3, F54S3)
 # Samples do not have metadata attached or with missing data
 # Number of threads set to 12 to speed up process.
 qiime feature-table filter-samples \
-  --i-table "${results_folder_1}/s05_table_collapsed_6.qza" \
+  --i-table "${results_folder_1}/s04_table.qza" \
   --m-metadata-file "${data_folder}/metadata.txt" \
-  --o-filtered-table "${results_folder_1}/f06_table_6.qza"
-
-qiime feature-table filter-samples \
-  --i-table "${results_folder_2}/s05_table_collapsed_6.qza" \
-  --m-metadata-file "${data_folder}/metadata.txt" \
-  --o-filtered-table "${results_folder_2}/f06_table_6.qza"
+  --o-filtered-table "${results_folder_1}/f06_table.qza"
 
 
 # Completion message

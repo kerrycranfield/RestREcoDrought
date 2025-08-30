@@ -31,7 +31,7 @@ qiime metadata tabulate \
   --m-input-file "${output_dir}/s05_taxonomy.qza" \
   --o-visualization "${output_dir}/s05_taxonomy.qzv"
 
-# Agglomerate feature table to desired level
+# Agglomerate feature table to desired level - remove this section if not collapsing
 qiime taxa collapse \
   --i-table "${feature_table}" \
   --i-taxonomy "${output_dir}/s05_taxonomy.qza" \

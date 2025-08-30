@@ -45,7 +45,7 @@ fun_seqs="${results_folder}/process_ITS"
 # Denoise (default --p-n-reads-learn 1000000)
 # Setting the number of threads to 12 for use on HPC
 # --p-trunc-len values set after checking base quality in reads - drop in quality at bases 224 and 225
-# Rerun with trunc-len set to 0 due to removal of all reads in first round of denoising
+# Note: Rerun with trunc-len set to 0 due to removal of all reads in first round of denoising
 qiime dada2 denoise-paired \
   --i-demultiplexed-seqs "${fun_seqs}/f03_pe_dmx_ITS.qza" \
   --p-trunc-len-f 0 \

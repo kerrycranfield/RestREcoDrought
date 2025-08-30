@@ -50,7 +50,7 @@ data_folder="${base_folder}/data"
 # Rearranges metadata so Tube Label is now Sampleid as first column - needed for qiime2 group-by tool to work
 # Removes samples from metadata that are not included in the provided data
 
-#python3 "${scripts_folder}/metadata_tool.py"
+python3 "${scripts_folder}/metadata_tool.py"
 
 # Collapses metadata to site/treatment level for use with aggregated feature table
 

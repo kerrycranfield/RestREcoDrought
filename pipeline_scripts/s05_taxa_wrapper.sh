@@ -40,7 +40,7 @@ results_folder="${base_folder}/results"
 # Parameter 3: Output directory - is created as part of script
 # If running script multiple times, make sure this is different each time to avoid overwriting
 # Parameter 4: location of feature table to be collapsed
-# Parameter 5: taxa level user wants feature table to be collapsed to
+# Parameter 5: taxa level user wants feature table to be collapsed to (if collapsing)
 # Eg. 6=genus, 5=family, 4=order, 3=class etc.
 
 # Greengenes2 v2024.09 classification of bacterial samples
@@ -49,16 +49,16 @@ ${results_folder}/process_16S/s04_rep_seqs.qza \
 ${results_folder}/taxonomy_16S \
 ${results_folder}/process_16S/s04_table.qza 6
 
-# UNITE V10 - 99% - classification of fungal samples
-./s05_classify_aglom.sh ${classifier_folder}/unite_ver10_99_all_19.02.2025-Q2-2024.10.qza \
+# UNITE V10 Just Fungi - 99% - classification of fungal samples
+./s05_classify_aglom.sh ${classifier_folder}/unite_ver10_99_19.02.2025-Q2-2024.10.qza \
 ${results_folder}/process_ITS/s04_rep_seqs.qza \
-${results_folder}/taxonomy_ITS_99 \
+${results_folder}/taxonomy_ITS_99_funonly \
 ${results_folder}/process_ITS/s04_table.qza 6
 
-# UNITE V10 - dynamic- classification of fungal samples
-./s05_classify_aglom.sh ${classifier_folder}/unite_ver10_dynamic_all_19.02.2025-Q2-2024.10.qza \
+# UNITE V10 Just Fungi - dynamic- classification of fungal samples
+./s05_classify_aglom.sh ${classifier_folder}/unite_ver10_dynamic_19.02.2025-Q2-2024.10.qza \
 ${results_folder}/process_ITS/s04_rep_seqs.qza \
-${results_folder}/taxonomy_ITS_dyn \
+${results_folder}/taxonomy_ITS_dyn_funonly \
 ${results_folder}/process_ITS/s04_table.qza 6
 
 ## Tidy up the log directory
