@@ -153,16 +153,23 @@ knitr::opts_chunk$set(plotly.use.cdn = TRUE)
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Abstract
+## Abstract and setting the scene
 
-As ecosystems are facing challenges from anthropogenic sources including land use changes and habitat destruction, methods for their re-establishment are being investigated. 
+Drought and other climate change-associated weather events could affect ecosystem services provided by soil microbial communities.
+Around 40% of the UK's land cover is grassland, so it is important to understand how water stress affects microbial communities.
+This may help ecologists to identify strategies for promoting grassland resilience. 
+The purpose of this project was to analyse 16S and ITS amplicon sequences from control and sheltered soil samples, collected by <a href="https://restreco.com/" target="_blank">RestREco</a>, to determine how short-term water stress affects the diversity, taxonomy and functions of soil bacteria and fungi. 
+We used a well-established pipeline involving bioinformatics tools QIIME2, DADA2, and PICRUSt2 (see workflow diagram below), alongside R packages phyloseq, vegan, ggpicrust2 and FUNGuildR. 
 
-Assisting the recovery of and building resilience in ecosystems requires the study of how ecological communities respond to different environmental conditions including drought. According to the UK Centre for Ecology and Hydrology, grasslands make up 40% of the UK's land surface while grassland restoration has been identified as a means of increasing biodiversity and reducing carbon emissions. 
-Soils have been identified as one of the most biodiverse habitats, and are home to between 44% and 74% of all species on Earth. Soil microbial communities, including bacteria and fungi, provide ecosystem services such as nutrient cycling, decomposition and regulating carbon storage, which are affected by changes in soil moisture. 
-According to the Environment Agency, soil moisture deficits across the UK have increased in March and April 2025. Additionally more frequent droughts are predicted due to climate change, therefore a greater understanding of how soil microbial communities respond to changes in soil moisture is key to building resilience in grassland ecosystems. 
-The aim of this study is to investigate how microbial species diversity, community composition and relationships between bacterial and fungal communities in grassland soils respond to changes in soil moisture levels.
-DNA sequences from bacterial 16S rRNA and fungal ITS from soil samples collected by the Restoring Resilient Ecosystems (RestREco) ecological restoration project will be analysed using bioinformatics tools.
-The methods will include running computational analysis tools using the Crescent2 high performance computing facilities and/or RStudio, testing hypotheses using statistical tests and placing findings in the context of current literature in scientific journals.
+### Summary of results
+
+1. Strong changes in bacterial diversity could be seen between sites under water stress although the overall effect was not significant 
+2. Drought had a significant effect on bacterial community composition (beta diversity) for rarer taxa,
+3. Drought-tolerant phyla increased in several sites under simulated drought conditions. 
+4. Parasitic fungal phyla, Zoopagomycota, significantly increased in some sites under water stress. 
+5. Bacterial pathways associated with energy production and drought defence were differentially abundant between sites under shelter, indicating a drought response. 
+
+We also found that site differences masked the full impact of drought, but the above findings indicate there were measurable effects on our bacterial and fungal communities, although the response from fungi was much more muted
 
 This page focuses on alpha and beta diversity and taxonomy.
 
@@ -219,7 +226,7 @@ The goal is to understand how these factors influence ecosystem complexity, func
 
 ## About this study
 
-This study uses targeted amplicon sequences (16S, ITS), retrieved from soil samples, to determine how **drought** affects soil microbial communities, specifically bacteria and fungi, in UK grasslands.
+This study used targeted amplicon sequences (16S, ITS), retrieved from soil samples, to determine how **drought** affects soil microbial communities, specifically bacteria and fungi, in UK grasslands.
 
 This study specifically focuses on:
 
@@ -227,13 +234,22 @@ This study specifically focuses on:
 - **Taxonomic composition**  
 - **Functional diversity**
 
+We focused on the following four hypotheses. That **drought**:
+
+- **Has a negative effect on the alpha diversity of bacterial and fungal communities**
+- **Affects community composition (beta diversity)**
+- **Induces changes in the taxonomic profiles of microbial communities**
+- **Affects the abundances of bacterial pathways and fungal guild composition**
+
 </br>
 
 ## Sample design and metadata
 
-A total of 72 soil samples were collected across six sites in England for each marker (6 per site: 3 control, 3 shelter).
+A total of 36 soil samples were collected across six sites in England for each marker (6 per site: 3 control, 3 shelter).
 
-Some fungal samples failed the initial quality control during the sequencing process, resulting in the removal of one site from the analysis (for fungi only), while other sites where one or two samples failed quality, were kept in (also for fungi).
+After sieving and extracting DNA, the V4-V5 region of the bacterial 16S gene and the ITS1-1F region of the fungal ITS gene was sequenced by Novogene.
+
+Some fungal samples failed the initial quality control during the sequencing process, resulting in the removal of one site from the analysis (for fungi only), while other sites where one or two samples failed quality checks, were kept in (also for fungi).
 
 ```{r metadata-table, echo=FALSE}
 
@@ -298,8 +314,42 @@ htmltools::HTML('
 
 ```
 
+## Summary of methodology
+
+
+<div style="display:flex; justify-content:center; gap:40px; margin-bottom: 1em">
+  <div style="text-align: center">
+  <a href="images/16Sworkflowdrawio.png" target="_blank"><img src="images/16Sworkflowdrawio.png" style="max-width: 50%; height: auto; cursor: zoom-in" alt="16S pipeline thumbnail"></a>
+
+  </br><p style="font-weight: bold;">Workflow (16S)</p>
+  </div>
+  <div style="text-align: center">
+  <a href="images/ITSworkflow.png" target="_blank"><img src="images/ITSworkflow.png" style="max-width: 50%; height: auto; cursor: zoom-in" alt="ITS pipeline thumbnail"></a>
+
+  </br><p style="font-weight: bold;">Workflow (ITS)</p>
+  </div>
+</div>
+
+
+### High performance computing steps
+
+Before diversity, taxonomy and functional analysis could take place, the initial analysis of the DNA sequences were performed using Cranfield University's high performance computing platform, Crescent2.
+
+For all the scripts from the high performance computing/QIIME2 steps visit the project's GitHub page at [GitHub - RestREco Drought](https://github.com/kerrycranfield/RestREcoDrought)
+
+These stages included quality control, trimming, denoising (merging paired reads, chimera removal and generating feature tables)
+
 
 ## Analysing soil moisture between control and shelter {.tabset}
+
+To make sure the rain shelters put in place for the experiment actually led to lower soil moisture when compared to the control, we carried out a paired Wilcoxon signed-rank test to check differences were significant.
+
+Here, we found soil in the shelter plots was significantly drier than in the control plots.
+
+The differences in individual sites varied, with some sites showing a much larger difference than others
+
+Across all samples, median soil moisture content was 39.8% for control and 6% for shelter with soil moisture percentages ranging from 17.6% to 48.5% (control) and 1.5% to 34.8% (shelter) 
+
 
 ``` {r process_measures, echo=FALSE, message = FALSE, warning=FALSE}
 soil_measures = read.csv("data/soil_measures.csv", header=TRUE, sep=",")
@@ -373,9 +423,13 @@ ggsave(filename = "images/moisture_site_plot.png", plot = treat.measures.dot)
 ```
 
 ## Import, filter and check
-QIIME2 generated feature table, taxonomy file, metadata and rooted phylogenetic tree were imported into R (insert citation) using qiime2r and objects for bacteria and fungi were generated using R phyloseq library (insert citation). General statistics were generated using the microbiome package (insert citation).
 
-### Bacteria
+The feature table, taxonomy table, tree and metadata were imported into phyloseq from QIIME2 using qiime2R. Sequences belonging to archaea and unassigned sequences were removed. 
+
+Below, we show how the phyloseq object changes with each step during preprocessing. A summary table is displayed after rarefaction is applied.
+
+
+### Bacteria - import and check ASVs
 
 ```{r create_bac_object, echo=FALSE, message = FALSE, warning=FALSE}
 
@@ -399,10 +453,9 @@ rm(feature_table_qza, rooted_tree_qza, taxonomy_qza, metadata_tsv)
 bac_data.phy
 summary_initial.bac <- microbiome::summarize_phyloseq(bac_data.phy)
 
-summary_initial.bac
 ```
 
-### Fungi
+### Fungi - import and check ASVs
 
 ```{r create_fun_object, echo=FALSE, message = FALSE, warning=FALSE}
 fun_feature_table_qza <- "data/ITS/f06_table.qza"
@@ -424,10 +477,6 @@ summary_initial.fun <- microbiome::summarize_phyloseq(fun_data.phy)
 
 ```
 
-### Bacteria
-
-The bacteria feature table was filtered to remove anything assigned as Archaea or unassigned.
-
 ```{r filter_bac_data, echo=FALSE, message = FALSE, warning=FALSE}
 table(as.data.frame(tax_table(bac_data.phy))$Kingdom)
 
@@ -435,9 +484,6 @@ table(as.data.frame(tax_table(bac_data.phy))$Kingdom)
 Bac <- subset_taxa(bac_data.phy, Kingdom== "d__Bacteria")
 Bac # No of OTUs dropped from 28,079 to 28,055
 ```
-### Fungi
-
-The fungal feature table was also checked to ensure there were only fungi present.
 
 ``` {r check_fungi, echo=FALSE, message = FALSE, warning=FALSE}
 
@@ -447,7 +493,8 @@ table(as.data.frame(tax_table(fun_data.phy))$Kingdom)
 
 ## Agglomeration
 
-Both the bacterial and fungal feature tables were then agglomerated to genera level. Statistics such as read counts and sparsity metrics (proportion of cells where count = 0) were generated using the microbiome package. This was to see how the number of reads and taxa change with each step.
+Both the bacterial and fungal feature tables were then agglomerated to genera level. Reads below this level were retained.
+
 
 ### Bacteria
 
@@ -457,7 +504,7 @@ Both the bacterial and fungal feature tables were then agglomerated to genera le
 Bac_Gen <- tax_glom(Bac, taxrank = "Genus", NArm=FALSE) # Reduces to 1118 genera vs qiime2's 1,194
 Bac_Gen
 
-microbiome::summarize_phyloseq(Bac_Gen)
+aglom_summ.bac <- microbiome::summarize_phyloseq(Bac_Gen)
 # Min no reads: 13 220
 # Max no reads: 32 660
 # Sparsity ~ 66.68%
@@ -470,11 +517,12 @@ microbiome::summarize_phyloseq(Bac_Gen)
 Fun_Gen <- tax_glom(fun_data.phy, taxrank = "Genus", NArm=FALSE) # Reduces to 711 taxa 
 Fun_Gen
 
-microbiome::summarize_phyloseq(Fun_Gen)
+aglom_summ.fun <- microbiome::summarize_phyloseq(Fun_Gen)
+
 ```
 ## Aggregation
 
-Feature tables were then aggregated to site level using speedyseq (insert citation) as phyloseq merge_samples combines abundances using sum. Median was felt to be more sample representative.
+Feature tables were then aggregated to site level using speedyseq as phyloseq merge_samples combines abundances using sum. Median was felt to be more representative of sample distribution plus prevented outliers from skewing the data.
 Read counts were again generated to check the aggregation step was performed correctly and metadata was checked to ensure no NAs were coerced into the data.
 
 ### Bacteria
@@ -485,7 +533,6 @@ BacGenSites <- speedyseq::merge_samples2(Bac_Gen, group = "Group_by", fun_otu = 
 BacGenSites
 
 summ_postagg.bac <- microbiome::summarize_phyloseq(BacGenSites)
-summ_postagg.bac
 # Sparsity ~71.7%
 
 ```
@@ -499,14 +546,14 @@ FunGenSites
 otu_table(FunGenSites) <- round(otu_table(FunGenSites))
 
 summ_postagg.fun <- microbiome::summarize_phyloseq(FunGenSites)
-summ_postagg.fun
 
 ```
+
 ## Rarefaction plot {.tabset}
 
-Rarefaction curves were then generated to find sampling depths using the rarecurve function in the vegan package to generate a tibble friendly data frame to be passed to ggplot2 to generate attractive rarefaction plots.
+Rarefaction curves were then generated to find sampling depths using the rarecurve function in the vegan package to generate a tibble friendly data frame to be passed to ggplot2 to generate attractive rarefaction plots. As non-aggregated data would be needed for later steps (ie. alpha diversity between sites), rarefaction curves were generated for this alongside those for aggregated data.
 
-### Bacteria - aggregated data
+### Bacteria - aggregated
 
 ``` {r bac_rarefaction, echo=FALSE, message = FALSE, warning=FALSE, fig.dim=c(8, 5)}
 
@@ -526,7 +573,7 @@ bac_curve
 
 ```
 
-### Bacteria - non-aggregated data
+### Bacteria - unaggregated
 
 ``` {r bac_rarefact_nonagg, echo = FALSE, message = FALSE, warning=FALSE, fig.dim=c(8, 5)}
 
@@ -543,7 +590,7 @@ bac_curve.nonagg
 ```
 
 
-### Fungi - aggregated data
+### Fungi - aggregated
 
 ``` {r fun_rarefaction, echo=FALSE, message = FALSE, warning=FALSE, fig.dim=c(8, 5)}
 
@@ -560,7 +607,7 @@ ggplot2::ggsave("images/rarecurve_fun.png", units="mm", height=200, width=400)
 fun_curve
 ```
 
-### Fungi - non-aggregated data
+### Fungi - unaggregated
 
 ``` {r fun_rarefact_nonagg, echo=FALSE, message = FALSE, warning=FALSE, fig.dim=c(8, 5)}
 
@@ -579,9 +626,13 @@ fun_curve.nonagg
 
 ## Apply rarefaction
 
-Rarefaction was applied to the bacterial and fungal feature tables. The bacteria feature table was rarefied to a sampling depth of 16 398 while fungi was rarefied to a sampling depth of 36 120.
+Bacterial samples for aggregated counts were rarefied to a depth of 16 398 in order to retain all samples, while non-aggregated counts were rarefied to a depth of 13 320, using the rarefy_even_depth function with the replace parameter set to false.
+
+For fungi, samples for aggregated counts were rarefied to a depth of 36 120 while non-aggregated counts were rarefied to 30 659.
 
 ### Bacteria
+
+#### Aggregated
 
 ``` {r apply_rare_bac, echo = FALSE, message = FALSE, warning=FALSE}
 BacGenSites.rarefied <- rarefy_even_depth(BacGenSites, sample.size = min(sample_sums(BacGenSites)), rngseed = 1984, replace=FALSE)
@@ -598,6 +649,7 @@ write.table(BGS.df, file="data/feature_table.tsv", sep="\t", row.names=FALSE, qu
 
 summ_rare_agg.bac <- microbiome::summarize_phyloseq(BacGenSites.rarefied)
 ```
+#### Unaggregated
 
 ``` {r apply_rare_bac_nonagg, echo=FALSE, message = FALSE, warning=FALSE}
 Bac_Gen.rarefied <- rarefy_even_depth(Bac_Gen, sample.size = min(sample_sums(Bac_Gen)), rngseed=1984, replace=FALSE)
@@ -618,6 +670,8 @@ summ_rare_nonagg.bac <- microbiome::summarize_phyloseq(Bac_Gen.rarefied)
 
 ### Fungi
 
+#### Aggregated
+
 ``` {r apply_rare_fun, echo=FALSE, message = FALSE, warning=FALSE}
 FunGenSites.rarefied <- rarefy_even_depth(FunGenSites, sample.size = min(sample_sums(FunGenSites)), rngseed = 1984, replace = FALSE)
 FunGenSites.rarefied
@@ -637,6 +691,8 @@ summ_rare_agg.fun <- microbiome::summarize_phyloseq(FunGenSites.rarefied)
 
 ```
 
+#### Unaggregated
+
 ``` {r apply_rare_fun_nonagg, echo = FALSE, message = FALSE, warning=FALSE}
 
 Fun_Gen.rarefied <- rarefy_even_depth(Fun_Gen, sample.size = min(sample_sums(Fun_Gen)), rngseed = 1984, replace = FALSE)
@@ -645,9 +701,134 @@ Fun_Gen.rarefied
 summ_rare_nonagg.fun <- microbiome::summarize_phyloseq(Fun_Gen.rarefied)
 ```
 
+## Preprocessing summary
+
+Throughout preprocessing, microbiome's summarize_phyloseq function was used to generate statistics to see how the number of sequences changed throughout the process. These statistics included read counts and sparsity metrics (proportion of cells where count = 0).
+
+
+```{r preprocess-summ-bac, echo=FALSE, message=FALSE, warning=FALSE}
+
+summ_process_bac.table <- data.frame (
+  Metric = c(
+    "Min reads",
+    "Max reads",
+    "Total reads",
+    "Average reads",
+    "Sparsity",
+    "No. singletons",
+    "% singletons"
+  ),
+  `Start` = c(
+    "13 222",
+    "32 667",
+    "865 814",
+    "~24 050",
+    "94.6%",
+    "951",
+    "3.39"
+  ),
+  `Agglomeration` = c(
+    "13 220",
+    "32 660",
+    "865 546",
+    "~24 043",
+    "66.7%",
+    "3",
+    "0.27"
+  ),
+  `Aggregation` = c(
+    "16 398",
+    "28 026",
+    "276 014",
+    "~23 001",
+    "69.2%",
+    "484",
+    "0.09"
+  ),
+  `Rarefaction` = c(
+    "16 398",
+    "16 398",
+    "196 776",
+    "16 398",
+    "45.7%",
+    "25",
+    "3.99"
+  ),
+  check.names = FALSE
+)
+
+summary_table.bac <- kable(summ_process_bac.table, format="html", escape = FALSE, align="lcc", caption="Preprocessing summary - bacteria") %>%
+  kable_styling(font_size = 12, bootstrap_options = c("condensed", "responsive"), full_width = FALSE, position="center") %>% 
+  column_spec(1, bold=TRUE) %>% 
+  row_spec(0, color="white", background = "black")
+
+summary_table.bac
+
+```
+
+```{r preprocess-summ-fun, echo=FALSE, message=FALSE, warning=FALSE}
+
+summ_process_fun.table <- data.frame (
+  Metric = c(
+    "Min reads",
+    "Max reads",
+    "Total reads",
+    "Average reads",
+    "Sparsity",
+    "No. singletons",
+    "% singletons"
+  ),
+  `Start` = c(
+    "30 659",
+    "78 553",
+    "1 329 016",
+    "~53 161",
+    "91%",
+    "0",
+    "0"
+  ),
+  `Agglomeration` = c(
+    "30 659",
+    "78 553",
+    "1 329 016",
+    "~53 161",
+    "91%",
+    "0",
+    "0"
+  ),
+  `Aggregation` = c(
+    "36 120",
+    "56 936",
+    "481 530",
+    "48 153",
+    "70%",
+    "203",
+    "0.28"
+  ),
+  `Rarefaction` = c(
+    "36 120",
+    "36 120",
+    "361 200",
+    "36 120",
+    "59%",
+    "10",
+    "1.96"
+  ),
+  check.names = FALSE
+)
+
+summary_table.fun <- kable(summ_process_fun.table, format="html", escape = FALSE, align="lcc", caption="Preprocessing summary - fungi") %>%
+  kable_styling(font_size = 12, bootstrap_options = c("condensed", "responsive"), full_width = FALSE, position="center") %>% 
+  column_spec(1, bold=TRUE) %>% 
+  row_spec(0, color="white", background = "black")
+
+summary_table.fun
+
+```
+
 ## Taxonomy
 
-Bar plots showing taxonomic composition at a phylum, class and family were generated for each variable being assessed: treatment, site and group (site-treatment). Functions for each type of bar plot were created.
+Bar plots showing taxonomic composition at a phylum, class and family were generated for each variable being assessed: treatment, site and group (site-treatment). Functions for each type of bar plot were created before being used to generate the plots below.
 
 
 ``` {r taxa_plot_func, echo=FALSE, message = FALSE, warning=FALSE}
@@ -738,8 +919,6 @@ dep_var_class_barplot <- function(phyloseq.obj, dep_var, save_path) {
 
 ```
 
-Function for bar plot at family level (cutoff for grouping was set to 2% as a colour palette large enough to show all families present was not available at the time:
-
 ``` {r taxa_fam_plot_func, echo=FALSE, message = FALSE, warning=FALSE}
 # Function for bar plot at family level (cutoff for grouping was set to 2% as a colour palette large enough to show all families present was not available at the time
 
@@ -789,6 +968,17 @@ dep_var_fam_barplot <- function(phyloseq.obj, dep_var, save_path) {
 
 #### Phylum {.tabset}
 
+No visible shifts in the most abundant bacterial phyla were observed in response to moisture deficits. Bacterial communities were dominated by Actinomycetota, Pseudomonadota, Acidobacteriota, Bacillota I and Chloroflexota.
+
+These phyla are common to UK grassland soils so their presence here is to be expected.
+
+However, the effects of moisture deficits on taxonomic composition were visible within individual sites. Shifts could be seen in the relative abundances of Actinomycetota, Pseudomonadota and Bacillota I, with the direction of change being site-dependent. 
+Actinomycetota increased while Pseudomonadota showed a slight decrease in most sites following the soil moisture reduction. 
+One site, Harley Farms, showed the opposite trend for both taxa. For Bacillota I, changes in relative abundance between sites could be seen.
+
+Both Actinomycetota and Bacillota I are drought-tolerant so their changes in drought conditions could be indicative of these strategies.
+
+
 ```{r bac_process_phylum, echo=FALSE, warning=FALSE}
 
 # Reagglomerate rarefied table to phylum level for plotting
@@ -835,6 +1025,13 @@ BacPhylumGroup.plot
 
 #### Class {.tabset}
 
+As at phylum level, no visible changes in taxonomic composition could be seen between treatments overall.
+
+On a site level, no large differences in taxonomic composition could be seen. Bacilli-A (orange) appeared to vary between sites with the biggest difference between Jemma 6 and Lardon Chase.
+
+Between treatments on each site, differences were subtle. Harley Farms showed some substantial differences between treatments for Bacilli-A (increased in drought) while Lardon Chase saw a decrease in Alphaproteobacteria in drought. 
+
+
 ``` {r bac_plots_class, echo=FALSE, warning=FALSE}
 
 # Reagglomerate rarefied table to class level for plotting
@@ -875,6 +1072,9 @@ BacClassGroup.plot
 ```
 
 #### Family {.tabset}
+
+Differences in taxonomic composition between control and drought were not observed. At a site-treatment level, subtle shifts could be seen in some families (DSM-18226_301387, Geminicoccaceae for example)
+
 
 ```{r bac_plots_fam, echo=FALSE, message = FALSE, warning=FALSE}
 
@@ -920,6 +1120,16 @@ BacFamGroup.plot
 
 #### Phylum {.tabset}
 
+Fungal community taxonomy also showed no major shifts in the abundance of the major phyla in response to water stress. 
+Ascomycota, Mortierellomycota and Basidiomycota dominated communities. Zoopagomycota increased slightly in drought. Around 10% of fungal ASVs could not be identified to phyla level.
+
+On individual sites, treatment-associated shifts in fungal community composition could be observed in Ascomycota and Mortierellomycota with direction of change site-dependent.
+
+Ascomycota abundances increased in shelter samples in three out of the five sites while Mortierellomycota showed the opposite trend. 
+
+Interestingly, the sites where Ascomycota decreased under water stress were the same sites where Mortierellomycota increased. An increase in the abundance of Zoopagomycota was also of note on Windmill Farm
+
+
 ``` {r fun_plots_phylum, echo=FALSE, warning=FALSE}
 
 # Reagglomerate rarefied table to phylum level for taxonomy plot generation
@@ -959,6 +1169,10 @@ FunPhylumGroup.plot
 
 ```
 #### Class {.tabset}
+
+At a class level, no major taxonomic shifts could be seen in relation to drought. Sordariomycetes and Mortierellomycetes were the dominant classes here.
+
+On some sites, changes in the abundances of these families could be seen between control and drought. The direction of change varied between sites, perhaps indicating an interaction between water stress and site conditions
 
 ``` {r fun_plots_class, echo=FALSE, warning=FALSE}
 
@@ -1002,6 +1216,9 @@ FunClassGroup.plot
 
 #### Family {.tabset}
 
+At a family level the dominant fungal families were Mortierellaceae, Bionectriaceae and Plectosphaerellaceae. Mortierellaceae showed different directions of change in different sites.
+
+
 ``` {r fun_plots_fam, echo=FALSE, warning=FALSE}
 
 # Reagglomerate rarefied table to family level for plotting
@@ -1042,7 +1259,11 @@ FunFamGroup.plot
 
 ## Alpha diversity
 
-Alpha diversity calculations were run for both bacteria and fungi to determine if there were differences in diversity between sites, treatments and groups.
+Alpha diversity calculations were run for both bacteria and fungi to determine if there were differences in diversity between sites and treatments.
+
+The Chao1, Shannon and Simpson metrics were used to measure richness and evenness. Chao1 is weighted towards doubletons and singletons while the other metrics place a different emphasis on richness and evenness.
+
+We also tested for statistical significance using paired Wilcoxon signed-rank test and Kruskal Wallis test.
 
 
 ``` {r alpha_div_func, echo=FALSE}
@@ -1076,7 +1297,6 @@ alpha_diversity.plot <- function(alpha_richness, phyloseq_obj, dep_var, colour_v
 }
 
 ```
-Alpha diversity plots were generated
 
 ### Bacteria {.tabset}
 
@@ -1095,11 +1315,62 @@ sample_data(Bac_Gen.rarefied)$Group_by <- as.factor(sample_data(Bac_Gen.rarefied
 
 # Run estimate_richness on aggregated data
 bac_alpha_richness <- estimate_richness(BacGenSites.rarefied, measures = c("Chao1", "Shannon", "Simpson"))
-bac_alpha_richness
+bac_alpha_rich.df <- as.data.frame(bac_alpha_richness)
+bac_alpha_rich.df <- rownames_to_column(bac_alpha_rich.df, var="Site")
+
+bac_alpha_rich.DT <- datatable(
+  bac_alpha_rich.df,
+  colnames=c("Site", "Chao1", "SE Chao1", "Shannon", "Simpson"),
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: center; color:black;  font-size: 150% ;','Alpha diversity metrics for aggregated data'),
+  options = list(
+    pageLength = 15,
+    scrollX = TRUE,
+    autoWidth = FALSE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(bac_alpha_rich.df),
+    `text-align` = 'center'
+    )
 
 # Run estimate_richness on non-aggregated data
 bac_alpha_richness.nonagg <- estimate_richness(Bac_Gen.rarefied, measures = c("Chao1", "Shannon", "Simpson"))
-bac_alpha_richness.nonagg
+bac_rich_nonagg.df <- as.data.frame(bac_alpha_richness.nonagg)
+bac_rich_nonagg.df <- rownames_to_column(bac_rich_nonagg.df, var="Sample")
+
+bac_alpha_rich.nonagg.DT <- datatable(
+  bac_rich_nonagg.df,
+  colnames=c("Sample", "Chao1", "SE Chao1", "Shannon", "Simpson"),
+  caption = htmltools::tags$caption( style = 'caption-side: top; text-align: center; color:black;  font-size: 150% ;','Alpha diversity metrics for unaggregated data'),
+  options = list(
+    pageLength = 15,
+    scrollX = TRUE,
+    autoWidth = FALSE,
+    dom = 'tip',
+    class = 'stripe hover row-border order-column',
+    initComplete = JS(
+      "function(settings, json) {",
+      "$(this.api().table().header()).css({'background-color': '#000', 'color': '#fff', 'font-weight': 'bold', 'text-align': 'center'});",
+      "}")
+  ),
+  class = "display nowrap compact",
+  rownames = FALSE
+) %>% 
+  formatStyle(
+    columns = names(bac_rich_nonagg.df),
+    `text-align` = 'center'
+    )
+
+bac_alpha_rich.nonagg.DT
+bac_alpha_rich.DT
 
 ```
 
@@ -1141,6 +1412,13 @@ bac_treat_wilcox.shannon <- wilcox.test(split_bac_richness[["Control"]][["Shanno
 bac_treat_wilcox.simpson <- wilcox.test(split_bac_richness[["Control"]][["Simpson"]], split_bac_richness[["Drought"]][["Simpson"]], paired=TRUE)
 
 ```
+
+After running estimate_richness, we tested for significance.
+
+We found that water stress did not directly affect bacterial or fungal alpha diversity. 
+
+In bacteria, Shannon and Simpson indices decreased between control and drought in five of the six sites, but this was not significant (p > 0.05). However there were site-specific effects with significant differences between sites in the drought samples but not in the controls. 
+Water deprivation can have multiple effects on diversity, some positive, some negative, depending on the literature. Positive effects have been attributed to adaptation and isolation reducing interspecies competition, while negative effects have been attributed to reduced nutrient availability, increase in osmotic stress and restricted mobility.
 
 #### Treatment
 
@@ -1229,6 +1507,11 @@ alpha_site_drought_bac.plot
 ```
 
 ### Fungi {.tabset}
+
+For fungi, differences in alpha diversity between control and drought were inconsistent with no significant differences between sites either.
+
+This supports suggestions in the literature that fungi are less sensitive and more resistant to water stress than bacteria.
+
 
 ``` {r alpha_div_fun, echo=FALSE, message = FALSE, warning = FALSE}
 
@@ -1388,11 +1671,10 @@ bac.shan_plot.post
 
 Post-hoc pairwise testing was carried out for the site and group variables using Dunn test as it is the recommended test to be run after Kruskal-Wallis:
 
-## Post-hoc pairwise for alpha diversity
+## Post-hoc pairwise for alpha diversity - bacteria drought samples
 
-### Bacteria
+As there were significant differences between sites in the drought samples, we carried out post-hoc testing to see where these differences occurred. This was only for the Shannon and Simpson metrics
 
-#### Sites - rain shelter
 
 ``` {r post_hoc_test_bac_site, echo=FALSE, include=FALSE, message=FALSE, warning=FALSE}
 library(dunn.test)
@@ -1462,9 +1744,10 @@ simp_site.DT
 
 ## Beta diversity and ordination plots
 
-Distances between samples were also calculated using ordinate method. The distance metrics selected were weighted/unweighted unifrac and Bray-Curtis
+Distances between samples were also calculated using ordinate method. The distance metrics selected were weighted and unweighted UniFrac for bacteria and Bray-Curtis and Jaccard for fungi.
 
 ### Bacteria
+
 
 ``` {r ord_func, echo=FALSE}
 
@@ -1540,7 +1823,12 @@ rm(list=ls(pattern="^ord_"))
 ```
 #### 3D plots
 
-##### Unweighted Unifrac
+##### Unweighted UniFrac
+
+Beta diversity analysis showed a clear separation between control and shelter samples for the unweighted UniFrac metric, which is sensitive to rarer taxa. This suggests that the effects of drought on rarer taxa was driving differences in community composition.
+
+Additionally, control and shelter samples from the same site clustered together in most cases. However, this clustering was not as compact when compared to weighted UniFrac (see further down). This also highlights the impact of rarer taxa on community composition within site in response to water stress.
+
 
 ``` {r bac_3d_plots_ufrac, echo=FALSE, message=FALSE, warning=FALSE}
 
@@ -1594,7 +1882,11 @@ ufrac.bac.site.3dplot
 
 ```
 
-##### Weighted Unifrac
+##### Weighted UniFrac
+
+For weighted UniFrac, the PCoA plot showed no treatment-based sample clustering, while the effect of treatment was not statistically significant, indicating that short-term water stress had a stronger impact on rare bacterial taxa.
+
+The pairing of samples from the same site was also more compact for weighted UniFrac when compared to unweighted.
 
 ``` {r bac_3d_plots_wufrac, echo=FALSE, message=FALSE, warning=FALSE}
 
@@ -1646,6 +1938,8 @@ wufrac.bac.site.3dplot
 
 ```
 ##### Bray-Curtis
+
+We also carried out analysis using Bray-Curtis, but as these showed similar results to weighted UniFrac, they were not included in the overall analysis.
 
 ``` {r bac_3d_plots_bray, echo=FALSE, message=FALSE, warning=FALSE}
 
@@ -1734,6 +2028,9 @@ rm(list=ls(pattern="^ord_"))
 ```
 
 #### 3D plots
+
+For fungi, differences in community composition related to treatment were not evident on the PCoA plots. There was no noticeable clustering of samples related to treatment for either Bray-Curtis or Jaccard along the top three PCoA plot axes (Figure C 6 and Figure C 7). Shelter and control samples from the same site were paired on the plots although the closeness of samples was site-dependent.
+
 
 ##### Bray-Curtis
 
@@ -1836,9 +2133,14 @@ jacc.fun.site.3dplot
 ```
 ## Permanova analysis
 
+Differences in community composition between samples based on treatment, site, and treatment-site were tested for statistical significance using PERMANOVA via vegan’s adonis2 function for all calculated distance metrics. 
+
 ### Bacteria
 
-#### Unweighted Unifrac
+#### Unweighted UniFrac
+
+Statistical testing showed significant differences in bacterial communities between treatments for unweighted UniFrac. This indicated that water stress affected bacterial communities for rarer or less abundant taxa, supporting the PCoA plot for unweighted UniFrac
+
 
 ``` {r bac_permanova_ufrac, echo=FALSE}
 
@@ -1852,7 +2154,12 @@ bac_ufrac.adonis
 bac_ufrac.adonis_null
 
 ```
-#### Weighted Unifrac
+#### Weighted UniFrac
+
+However, once abundance was taken into account through weighted UniFrac, the differences in community composition between treatments were not significant.
+
+There is support in the literature than repeated drying-rewetting events can alter taxonomic profiles of microbial communities through effects on rarer taxa. This has been attributed to rarer taxa having more specific resource requirements or just being more sensitive to environmental disturbance in general.
+
 
 ``` {r bac_permanova_wufrac, echo=FALSE}
 
@@ -1877,6 +2184,12 @@ bac_bray.adonis_null
 
 ```
 ### Fungi
+
+For fungal communities, differences in community composition were not significant between treatments for either Bray-Curtis or Jaccard. However, differences between sites, and between samples were significant. This suggests fungal communities varied greatly between sites while the impact of short-term water stress was modest and site dependent.
+
+Factors which can affect fungal community composition include land management, soil pH and location. For example fungal communities can be negatively affected by intensive land management due to fertiliser application.
+
+Comparing bacterial and fungal communities indicates a weaker effect of water stress on fungal taxonomic profiles. This reinforces the suggestion that fungi are less responsive to drought overall.
 
 #### Bray-Curtis
 
