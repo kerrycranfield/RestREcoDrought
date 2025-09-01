@@ -31,8 +31,8 @@ Full results are available here: <a href="https://kerrycranfield.github.io/RestR
 3. <b>b03_q2_import_and_trim.sh</b> (16S) - Trimming adapters using CutAdapt (QIIME2) and further quality checks using demux summarize from QIIME2
    
    <b>f03_q2_import_and_display.sh</b> (ITS) - Perform quality checks using demux summarize from QIIME2 (no trimming required)
-4. <b>b04_q2_denoise.sh</b> (16S) - Denoising. Merges paired reads, removes sequencing errors and chimeras and generates feature tables
-   <b>f04_q2_denoise.sh</b> (ITS) - As for 16S
+4. <p><b>b04_q2_denoise.sh</b> (16S) - Denoising. Merges paired reads, removes sequencing errors and chimeras and generates feature tables</p>
+   <p><b>f04_q2_denoise.sh</b> (ITS) - As for 16S</p>
 5. <b>s05_classify_aglom.sh</b> - Taxonomic assignment of sequences using GreenGenes2 for 16S and UNITE 99/dynamic for ITS. Also collapses feature table to desired taxonomic level, but outputs from collapse were not used for this project
 6. <b>b06_phylo_tree.sh</b> (16S only) - Generates phylogenetic tree and aligns sequences using QIIME2's phylogeny align-to-tree-mafft-fasttree
 7. <b>f06b_filter_table.sh</b> (ITS only) - Filter out samples from feature table that are not in the metadata eg. Harley Farms
