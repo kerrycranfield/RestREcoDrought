@@ -455,6 +455,14 @@ summary_initial.bac <- microbiome::summarize_phyloseq(bac_data.phy)
 
 ```
 
+```{r filter_bac_data, echo=FALSE, message = FALSE, warning=FALSE}
+table(as.data.frame(tax_table(bac_data.phy))$Kingdom)
+
+# Remove archaea and unassigned taxa
+Bac <- subset_taxa(bac_data.phy, Kingdom== "d__Bacteria")
+Bac # No of OTUs dropped from 28,079 to 28,055
+```
+
 ### Fungi - import and check ASVs
 
 ```{r create_fun_object, echo=FALSE, message = FALSE, warning=FALSE}
@@ -475,14 +483,6 @@ detach("package:qiime2R", unload=TRUE)
 fun_data.phy
 summary_initial.fun <- microbiome::summarize_phyloseq(fun_data.phy)
 
-```
-
-```{r filter_bac_data, echo=FALSE, message = FALSE, warning=FALSE}
-table(as.data.frame(tax_table(bac_data.phy))$Kingdom)
-
-# Remove archaea and unassigned taxa
-Bac <- subset_taxa(bac_data.phy, Kingdom== "d__Bacteria")
-Bac # No of OTUs dropped from 28,079 to 28,055
 ```
 
 ``` {r check_fungi, echo=FALSE, message = FALSE, warning=FALSE}
@@ -2029,7 +2029,7 @@ rm(list=ls(pattern="^ord_"))
 
 #### 3D plots
 
-For fungi, differences in community composition related to treatment were not evident on the PCoA plots. There was no noticeable clustering of samples related to treatment for either Bray-Curtis or Jaccard along the top three PCoA plot axes (Figure C 6 and Figure C 7). Shelter and control samples from the same site were paired on the plots although the closeness of samples was site-dependent.
+For fungi, differences in community composition related to treatment were not evident on the PCoA plots. There was no noticeable clustering of samples related to treatment for either Bray-Curtis or Jaccard along the top three PCoA plot axes. Shelter and control samples from the same site were paired on the plots although the closeness of samples was site-dependent.
 
 
 ##### Bray-Curtis
